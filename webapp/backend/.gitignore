@@ -53,3 +53,9 @@ htmlcov/
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Media files (user uploads)
+media/
+
+# Pyright config
+pyrightconfig.json

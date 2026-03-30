@@ -2,18 +2,15 @@ from rest_framework.permissions import BasePermission
 
 
 class IsAdmin(BasePermission):
-    """Allow access only to admin users."""
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'admin'
 
 
-class IsMember(BasePermission):
-    """Allow access only to member users."""
+class IsDoctor(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'member'
+        return request.user.is_authenticated and request.user.role == 'doctor'
 
 
-class IsAdminOrMember(BasePermission):
-    """Allow access to any authenticated user regardless of role."""
+class IsAdminOrDoctor(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin', 'member']
+        return request.user.is_authenticated and request.user.role in ['admin', 'doctor']
