@@ -1,20 +1,20 @@
 from django.urls import path
 from .views import (
-    PatientListView,
-    PatientCreateView,
-    PatientDetailView,
-    PatientUpdateView,
-    PatientDeleteView,
-    FileUploadView,
-    FileDeleteView,
+    patient_list,
+    patient_create,
+    patient_detail,
+    patient_update,
+    patient_delete,
+    file_upload,
+    file_delete,
 )
 
 urlpatterns = [
-    path('', PatientListView.as_view(), name='patient_list'),
-    path('create/', PatientCreateView.as_view(), name='patient_create'),
-    path('<int:pk>/', PatientDetailView.as_view(), name='patient_detail'),
-    path('<int:pk>/update/', PatientUpdateView.as_view(), name='patient_update'),
-    path('<int:pk>/delete/', PatientDeleteView.as_view(), name='patient_delete'),
-    path('<int:pk>/files/upload/', FileUploadView.as_view(), name='file_upload'),
-    path('files/<int:pk>/delete/', FileDeleteView.as_view(), name='file_delete'),
+    path('', patient_list, name='patient_list'),
+    path('create/', patient_create, name='patient_create'),
+    path('<int:pk>/', patient_detail, name='patient_detail'),
+    path('<int:pk>/update/', patient_update, name='patient_update'),
+    path('<int:pk>/delete/', patient_delete, name='patient_delete'),
+    path('<int:pk>/files/upload/', file_upload, name='file_upload'),
+    path('files/<int:pk>/delete/', file_delete, name='file_delete'),
 ]

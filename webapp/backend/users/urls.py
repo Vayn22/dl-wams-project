@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import AdminOnlyView, DoctorView
+from .views import admin_only, doctor_view
 
 urlpatterns = [
-    path('admin-only/', AdminOnlyView.as_view(), name='admin_only'),
-    path('doctor/', DoctorView.as_view(), name='doctor'),
+    path('admin-only/', admin_only, name='admin_only'),
+    path('doctor/', doctor_view, name='doctor'),
 ]

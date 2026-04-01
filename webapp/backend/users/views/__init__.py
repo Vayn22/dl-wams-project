@@ -1,3 +1,3 @@
 from .token_obtain import CustomTokenObtainPairView
-from .admin_only import AdminOnlyView
-from .doctor_view import DoctorView
+from .admin_only import admin_only
+from .doctor_view import doctor_view

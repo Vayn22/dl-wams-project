@@ -1,10 +1,9 @@
-from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from users.permissions import IsAdmin
+from users.decorators import any_role
 
 
-class AdminOnlyView(APIView):
-    permission_classes = [IsAdmin]
-
-    def get(self, request):
-        return Response({'message': f'Hello admin {request.user.username}!'})
+@api_view(['GET'])
+@any_role('admin')
+def admin_only(request):
+    return Response({'message': f'Hello admin {request.user.username}!'})
