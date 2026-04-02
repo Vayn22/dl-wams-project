@@ -7,7 +7,7 @@ from users.decorators import any_role
 
 
 @api_view(['DELETE'])
-@any_role('admin')
+@any_role('admin', 'doctor')
 def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     patient.delete()

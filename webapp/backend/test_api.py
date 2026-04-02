@@ -1,281 +1,328 @@
 """
-API Test Script - dl-wams-project
-Run from your backend folder:  python test_api.py
-Requires: pip install requests
+API Test Script — dl-wams-project
+Run from the backend folder:  python test_api.py
+Make sure your Django server is running first: python manage.py runserver
 """
 
 import requests
 import json
+import sys
 
-BASE = "http://127.0.0.1:8000/api"
+BASE = "http://127.0.0.1:8000"
 
 # ─────────────────────────────────────────────
-#  CONFIG — fill these in before running
+# CONFIG — fill these in before running
 # ─────────────────────────────────────────────
-ADMIN_USERNAME  = "Islem"
+ADMIN_USERNAME  = "Islem" # change em i just put mine to test
 ADMIN_PASSWORD  = "password"
-DOCTOR_USERNAME = "Islem"
-DOCTOR_PASSWORD = "password"
+DOCTOR_USERNAME = "drIslem"
+DOCTOR_PASSWORD = "thep@$$w0rd"
 
-# A patient ID that already exists in your DB (for detail/update/delete tests)
-EXISTING_PATIENT_ID = 1
-# A medical file ID that already exists (for file_delete test)
-EXISTING_FILE_ID = 1
 # ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+GREEN  = "\033[92m"
+RED    = "\033[91m"
+YELLOW = "\033[93m"
+CYAN   = "\033[96m"
+BOLD   = "\033[1m"
+RESET  = "\033[0m"
 
-PASS = "\033[92m✔ PASS\033[0m"
-FAIL = "\033[91m✘ FAIL\033[0m"
-INFO = "\033[94m─\033[0m"
+passed = 0
+failed = 0
 
+def header(title):
+    print(f"\n{CYAN}{BOLD}{'═'*55}{RESET}")
+    print(f"{CYAN}{BOLD}  {title}{RESET}")
+    print(f"{CYAN}{BOLD}{'═'*55}{RESET}")
 
-def section(title):
-    print(f"\n\033[1m{'='*55}\033[0m")
-    print(f"\033[1m  {title}\033[0m")
-    print(f"\033[1m{'='*55}\033[0m")
-
-
-def check(label, response, expected_status):
+def test(label, response, expected_status, show_body=True):
+    global passed, failed
     ok = response.status_code == expected_status
-    badge = PASS if ok else FAIL
-    print(f"  {badge}  [{response.status_code}]  {label}")
-    if not ok:
+    icon = f"{GREEN}✔ PASS{RESET}" if ok else f"{RED}✘ FAIL{RESET}"
+    status_color = GREEN if ok else RED
+    print(f"  {icon}  [{status_color}{response.status_code}{RESET}]  {label}")
+    if not ok and show_body:
         try:
-            print(f"        {INFO} Response: {json.dumps(response.json(), indent=8)}")
+            body = json.dumps(response.json(), indent=8)
+            lines = body.splitlines()
+            preview = "\n".join(lines[:8])
+            if len(lines) > 8:
+                preview += f"\n        ... (+{len(lines)-8} more lines)"
+            print(f"        {RED}↳ Response: {preview}{RESET}")
         except Exception:
-            print(f"        {INFO} Response: {response.text[:200]}")
-    return response
-
-
-def get_token(username, password):
-    r = requests.post(f"{BASE}/token/", json={"username": username, "password": password})
-    if r.status_code == 200:
-        return r.json().get("access")
-    print(f"  \033[91m✘ Could not get token for '{username}' (status {r.status_code})\033[0m")
-    print(f"    {INFO} {r.text[:200]}")
-    return None
-
+            print(f"        {RED}↳ Response: {response.text[:300]}{RESET}")
+    if ok:
+        passed += 1
+    else:
+        failed += 1
 
 def auth(token):
     return {"Authorization": f"Bearer {token}"}
 
+def skip(label):
+    print(f"  {YELLOW}⚠ SKIP{RESET}  {label}")
+
 
 # ══════════════════════════════════════════════
-#  1. TOKEN ENDPOINTS
+# GET TOKENS
 # ══════════════════════════════════════════════
-section("1. AUTH — Token endpoints")
+header("0. SETUP — Getting tokens")
 
-r = requests.post(f"{BASE}/token/", json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD})
-check("POST /api/token/  (admin login)", r, 200)
+r = requests.post(f"{BASE}/api/token/", json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD})
 admin_token = r.json().get("access") if r.status_code == 200 else None
-admin_refresh = r.json().get("refresh") if r.status_code == 200 else None
+print(f"  {'✔' if admin_token else '✘'}  Admin token:  {'obtained' if admin_token else RED + 'FAILED — check ADMIN_USERNAME/ADMIN_PASSWORD' + RESET}")
 
-r = requests.post(f"{BASE}/token/", json={"username": DOCTOR_USERNAME, "password": DOCTOR_PASSWORD})
-check("POST /api/token/  (doctor login)", r, 200)
+r = requests.post(f"{BASE}/api/token/", json={"username": DOCTOR_USERNAME, "password": DOCTOR_PASSWORD})
 doctor_token = r.json().get("access") if r.status_code == 200 else None
+print(f"  {'✔' if doctor_token else '✘'}  Doctor token: {'obtained' if doctor_token else RED + 'FAILED — check DOCTOR_USERNAME/DOCTOR_PASSWORD' + RESET}")
 
-if admin_refresh:
-    r = requests.post(f"{BASE}/token/refresh/", json={"refresh": admin_refresh})
-    check("POST /api/token/refresh/", r, 200)
-
-r = requests.post(f"{BASE}/token/", json={"username": "wrong", "password": "wrong"})
-check("POST /api/token/  (bad credentials -> 401)", r, 401)
+if not admin_token and not doctor_token:
+    print(f"\n{RED}  Both tokens failed. Is the server running? Exiting.{RESET}\n")
+    sys.exit(1)
 
 
 # ══════════════════════════════════════════════
-#  2. USER VIEWS
+# 1. AUTH
 # ══════════════════════════════════════════════
-section("2. USERS — /api/users/")
+header("1. AUTH — Token endpoints")
+
+r = requests.post(f"{BASE}/api/token/", json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD})
+test("POST /api/token/  (admin login)", r, 200)
+
+r = requests.post(f"{BASE}/api/token/", json={"username": DOCTOR_USERNAME, "password": DOCTOR_PASSWORD})
+test("POST /api/token/  (doctor login)", r, 200)
+
+r = requests.post(f"{BASE}/api/token/refresh/", json={"refresh": ""})
+test("POST /api/token/refresh/  (empty refresh -> 401)", r, 401)
+
+r = requests.post(f"{BASE}/api/token/", json={"username": "wrong", "password": "wrong"})
+test("POST /api/token/  (bad credentials -> 401)", r, 401)
+
+r = requests.post(f"{BASE}/api/token/", json={})
+test("POST /api/token/  (empty body -> 400)", r, 400)
+
+
+# ══════════════════════════════════════════════
+# 2. USERS
+# ══════════════════════════════════════════════
+header("2. USERS — /api/users/")
 
 if admin_token:
-    r = requests.get(f"{BASE}/users/admin-only/", headers=auth(admin_token))
-    check("GET /api/users/admin-only/  (as admin -> 200)", r, 200)
+    r = requests.get(f"{BASE}/api/users/admin-only/", headers=auth(admin_token))
+    test("GET /api/users/admin-only/  (as admin -> 200)", r, 200)
+else:
+    skip("GET /api/users/admin-only/  (as admin) — no admin token")
 
 if doctor_token:
-    r = requests.get(f"{BASE}/users/admin-only/", headers=auth(doctor_token))
-    check("GET /api/users/admin-only/  (as doctor -> 403)", r, 403)
+    r = requests.get(f"{BASE}/api/users/admin-only/", headers=auth(doctor_token))
+    test("GET /api/users/admin-only/  (as doctor -> 403)", r, 403)
+else:
+    skip("GET /api/users/admin-only/  (as doctor) — no doctor token")
 
-r = requests.get(f"{BASE}/users/admin-only/")
-check("GET /api/users/admin-only/  (no token -> 401)", r, 401)
+r = requests.get(f"{BASE}/api/users/admin-only/")
+test("GET /api/users/admin-only/  (no token -> 401)", r, 401)
 
 if doctor_token:
-    r = requests.get(f"{BASE}/users/doctor/", headers=auth(doctor_token))
-    check("GET /api/users/doctor/  (as doctor -> 200)", r, 200)
+    r = requests.get(f"{BASE}/api/users/doctor/", headers=auth(doctor_token))
+    test("GET /api/users/doctor/  (as doctor -> 200)", r, 200)
 
 if admin_token:
-    r = requests.get(f"{BASE}/users/doctor/", headers=auth(admin_token))
-    check("GET /api/users/doctor/  (as admin -> 200)", r, 200)
+    r = requests.get(f"{BASE}/api/users/doctor/", headers=auth(admin_token))
+    test("GET /api/users/doctor/  (as admin -> 200)", r, 200)
 
-r = requests.get(f"{BASE}/users/doctor/")
-check("GET /api/users/doctor/  (no token -> 401)", r, 401)
+r = requests.get(f"{BASE}/api/users/doctor/")
+test("GET /api/users/doctor/  (no token -> 401)", r, 401)
 
 
 # ══════════════════════════════════════════════
-#  3. PATIENT LIST
+# 3. PATIENTS — List
 # ══════════════════════════════════════════════
-section("3. PATIENTS — GET /api/patients/")
+header("3. PATIENTS — GET /api/patients/")
 
 if admin_token:
-    r = requests.get(f"{BASE}/patients/", headers=auth(admin_token))
-    check("GET /api/patients/  (as admin -> 200)", r, 200)
+    r = requests.get(f"{BASE}/api/patients/", headers=auth(admin_token))
+    test("GET /api/patients/  (as admin -> 200)", r, 200)
 
 if doctor_token:
-    r = requests.get(f"{BASE}/patients/", headers=auth(doctor_token))
-    check("GET /api/patients/  (as doctor -> 200)", r, 200)
+    r = requests.get(f"{BASE}/api/patients/", headers=auth(doctor_token))
+    test("GET /api/patients/  (as doctor -> 200)", r, 200)
 
-r = requests.get(f"{BASE}/patients/")
-check("GET /api/patients/  (no token -> 401)", r, 401)
+r = requests.get(f"{BASE}/api/patients/")
+test("GET /api/patients/  (no token -> 401)", r, 401)
 
 
 # ══════════════════════════════════════════════
-#  4. PATIENT CREATE
+# 4. PATIENTS — Create
 # ══════════════════════════════════════════════
-section("4. PATIENTS — POST /api/patients/create/")
+header("4. PATIENTS — POST /api/patients/create/")
 
-new_patient_data = {
-    "first_name": "Test",
-    "last_name": "Patient",
-    "phone_number": "0699999999",
-    "date_of_birth": "1990-01-01",
+# gender must be 'male' | 'female' | 'other'  (not 'M')
+NEW_PATIENT = {
+    "first_name":    "Test",
+    "last_name":     "Patient",
+    "date_of_birth": "1990-06-15",
+    "gender":        "male",
+    "phone_number":  "0550000099",
 }
 
 created_patient_id = None
 
 if admin_token:
-    r = requests.post(f"{BASE}/patients/create/", json=new_patient_data, headers=auth(admin_token))
-    ok_status = r.status_code in (200, 201)
-    print(f"  {'%s' % PASS if ok_status else FAIL}  [{r.status_code}]  POST /api/patients/create/  (as admin -> 201 or 200 if exists)")
+    r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(admin_token))
+    expected = 200 if r.status_code == 200 else 201
+    test("POST /api/patients/create/  (as admin -> 201, or 200 if already exists)", r, expected)
     if r.status_code in (200, 201):
-        created_patient_id = r.json().get("id") or r.json().get("patient", {}).get("id")
+        body = r.json()
+        created_patient_id = body.get("id") or (body.get("patient") or {}).get("id")
+        print(f"        {GREEN}↳ Created patient ID: {created_patient_id}{RESET}")
 
 if doctor_token:
-    data = {**new_patient_data, "phone_number": "0688888888"}
-    r = requests.post(f"{BASE}/patients/create/", json=data, headers=auth(doctor_token))
-    ok_status = r.status_code in (200, 201)
-    print(f"  {'%s' % PASS if ok_status else FAIL}  [{r.status_code}]  POST /api/patients/create/  (as doctor -> 201 or 200)")
+    r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(doctor_token))
+    # same phone → patient exists → doctor gets linked → 200
+    test("POST /api/patients/create/  (as doctor, duplicate -> 200 linked)", r, 200)
+    if r.status_code in (200, 201) and not created_patient_id:
+        body = r.json()
+        created_patient_id = body.get("id") or (body.get("patient") or {}).get("id")
 
-r = requests.post(f"{BASE}/patients/create/", json=new_patient_data)
-check("POST /api/patients/create/  (no token -> 401)", r, 401)
-
-
-# ══════════════════════════════════════════════
-#  5. PATIENT DETAIL
-# ══════════════════════════════════════════════
-pid = created_patient_id or EXISTING_PATIENT_ID
-section(f"5. PATIENTS — GET /api/patients/{pid}/")
+r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT)
+test("POST /api/patients/create/  (no token -> 401)", r, 401)
 
 if admin_token:
-    r = requests.get(f"{BASE}/patients/{pid}/", headers=auth(admin_token))
-    check(f"GET /api/patients/{pid}/  (as admin -> 200)", r, 200)
+    r = requests.post(f"{BASE}/api/patients/create/", json={}, headers=auth(admin_token))
+    test("POST /api/patients/create/  (empty body -> 400)", r, 400)
+
+if admin_token:
+    r = requests.post(
+        f"{BASE}/api/patients/create/",
+        json={**NEW_PATIENT, "phone_number": "0550000088", "gender": "INVALID"},
+        headers=auth(admin_token)
+    )
+    test("POST /api/patients/create/  (bad gender value -> 400)", r, 400)
+
+
+# ══════════════════════════════════════════════
+# 5. PATIENTS — Detail
+# ══════════════════════════════════════════════
+header("5. PATIENTS — GET /api/patients/<pk>/")
+
+pk = created_patient_id or 1
+if not created_patient_id:
+    print(f"  {YELLOW}⚠ Patient creation failed earlier — using pk=1 as fallback (may 404){RESET}")
+
+if admin_token:
+    r = requests.get(f"{BASE}/api/patients/{pk}/", headers=auth(admin_token))
+    test(f"GET /api/patients/{pk}/  (as admin -> 200)", r, 200)
 
 if doctor_token:
-    r = requests.get(f"{BASE}/patients/{pid}/", headers=auth(doctor_token))
-    ok_status = r.status_code in (200, 403)
-    print(f"  {'%s' % PASS if ok_status else FAIL}  [{r.status_code}]  GET /api/patients/{pid}/  (as doctor -> 200 or 403)")
+    r = requests.get(f"{BASE}/api/patients/{pk}/", headers=auth(doctor_token))
+    # doctor was linked above, so expect 200
+    test(f"GET /api/patients/{pk}/  (as doctor, linked -> 200)", r, 200)
 
-r = requests.get(f"{BASE}/patients/{pid}/")
-check(f"GET /api/patients/{pid}/  (no token -> 401)", r, 401)
+r = requests.get(f"{BASE}/api/patients/{pk}/")
+test(f"GET /api/patients/{pk}/  (no token -> 401)", r, 401)
 
 if admin_token:
-    r = requests.get(f"{BASE}/patients/999999/", headers=auth(admin_token))
-    check("GET /api/patients/999999/  (non-existent -> 404)", r, 404)
+    r = requests.get(f"{BASE}/api/patients/999999/", headers=auth(admin_token))
+    test("GET /api/patients/999999/  (non-existent -> 404)", r, 404)
 
 
 # ══════════════════════════════════════════════
-#  6. PATIENT UPDATE
+# 6. PATIENTS — Update
 # ══════════════════════════════════════════════
-section(f"6. PATIENTS — PUT /api/patients/{pid}/update/")
+header("6. PATIENTS — PUT /api/patients/<pk>/update/")
 
 if admin_token:
-    r = requests.put(f"{BASE}/patients/{pid}/update/", json={"first_name": "Updated"}, headers=auth(admin_token))
-    check(f"PUT /api/patients/{pid}/update/  (as admin -> 200)", r, 200)
+    r = requests.put(
+        f"{BASE}/api/patients/{pk}/update/",
+        json={"first_name": "Updated", "gender": "male"},
+        headers=auth(admin_token)
+    )
+    test(f"PUT /api/patients/{pk}/update/  (as admin -> 200)", r, 200)
 
 if doctor_token:
-    r = requests.put(f"{BASE}/patients/{pid}/update/", json={"first_name": "DocUpdate"}, headers=auth(doctor_token))
-    ok_status = r.status_code in (200, 403)
-    print(f"  {'%s' % PASS if ok_status else FAIL}  [{r.status_code}]  PUT /api/patients/{pid}/update/  (as doctor -> 200 or 403)")
+    r = requests.put(
+        f"{BASE}/api/patients/{pk}/update/",
+        json={"last_name": "DocUpdated"},
+        headers=auth(doctor_token)
+    )
+    test(f"PUT /api/patients/{pk}/update/  (as doctor, linked -> 200)", r, 200)
 
-r = requests.put(f"{BASE}/patients/{pid}/update/", json={"first_name": "NoAuth"})
-check(f"PUT /api/patients/{pid}/update/  (no token -> 401)", r, 401)
+r = requests.put(f"{BASE}/api/patients/{pk}/update/", json={"first_name": "X"})
+test(f"PUT /api/patients/{pk}/update/  (no token -> 401)", r, 401)
 
 
 # ══════════════════════════════════════════════
-#  7. FILE UPLOAD
+# 7. FILES — Upload & Delete
 # ══════════════════════════════════════════════
-section(f"7. PATIENTS — POST /api/patients/{pid}/files/upload/")
-
-import os, tempfile
-
-tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
-tmp.write(b"test medical file content")
-tmp.close()
+header("7. FILES — /api/patients/<pk>/files/")
 
 uploaded_file_id = None
 
-if admin_token:
-    with open(tmp.name, "rb") as f:
-        r = requests.post(
-            f"{BASE}/patients/{pid}/files/upload/",
-            files={"file": ("test.txt", f, "text/plain")},
-            headers=auth(admin_token)
-        )
-    check(f"POST /api/patients/{pid}/files/upload/  (as admin -> 201)", r, 201)
+if admin_token and created_patient_id:
+    dummy = ("test_file.txt", b"dummy medical content", "text/plain")
+    r = requests.post(
+        f"{BASE}/api/patients/{pk}/files/upload/",
+        files={"file": dummy},
+        headers=auth(admin_token)
+    )
+    test(f"POST /api/patients/{pk}/files/upload/  (as admin -> 201)", r, 201)
     if r.status_code == 201:
         uploaded_file_id = r.json().get("id")
+        print(f"        {GREEN}↳ Uploaded file ID: {uploaded_file_id}{RESET}")
 
-if doctor_token:
-    with open(tmp.name, "rb") as f:
-        r = requests.post(
-            f"{BASE}/patients/{pid}/files/upload/",
-            files={"file": ("test2.txt", f, "text/plain")},
-            headers=auth(doctor_token)
-        )
-    ok_status = r.status_code in (201, 403)
-    print(f"  {'%s' % PASS if ok_status else FAIL}  [{r.status_code}]  POST /api/patients/{pid}/files/upload/  (as doctor -> 201 or 403)")
+    dummy = ("test_file.txt", b"dummy medical content", "text/plain")
+    r = requests.post(f"{BASE}/api/patients/{pk}/files/upload/", files={"file": dummy})
+    test(f"POST /api/patients/{pk}/files/upload/  (no token -> 401)", r, 401)
+else:
+    skip("File upload tests — no patient ID available")
 
-with open(tmp.name, "rb") as f:
-    r = requests.post(f"{BASE}/patients/{pid}/files/upload/", files={"file": ("test3.txt", f, "text/plain")})
-check(f"POST /api/patients/{pid}/files/upload/  (no token -> 401)", r, 401)
-
-os.unlink(tmp.name)
-
-
-# ══════════════════════════════════════════════
-#  8. FILE DELETE
-# ══════════════════════════════════════════════
-fid = uploaded_file_id or EXISTING_FILE_ID
-section(f"8. PATIENTS — DELETE /api/patients/files/{fid}/delete/")
-
-r = requests.delete(f"{BASE}/patients/files/{fid}/delete/")
-check(f"DELETE /api/patients/files/{fid}/delete/  (no token -> 401)", r, 401)
+if admin_token and uploaded_file_id:
+    r = requests.delete(
+        f"{BASE}/api/patients/files/{uploaded_file_id}/delete/",
+        headers=auth(admin_token)
+    )
+    test(f"DELETE /api/patients/files/{uploaded_file_id}/delete/  (as admin -> 204)", r, 204, show_body=False)
 
 if admin_token:
-    r = requests.delete(f"{BASE}/patients/files/{fid}/delete/", headers=auth(admin_token))
-    check(f"DELETE /api/patients/files/{fid}/delete/  (as admin -> 204)", r, 204)
-
-    r = requests.delete(f"{BASE}/patients/files/999999/delete/", headers=auth(admin_token))
-    check("DELETE /api/patients/files/999999/delete/  (non-existent -> 404)", r, 404)
+    r = requests.delete(f"{BASE}/api/patients/files/999999/delete/", headers=auth(admin_token))
+    test("DELETE /api/patients/files/999999/delete/  (non-existent -> 404)", r, 404)
 
 
 # ══════════════════════════════════════════════
-#  9. PATIENT DELETE  (last — destroys data)
+# 8. PATIENTS — Delete (last, destroys data)
 # ══════════════════════════════════════════════
-section(f"9. PATIENTS — DELETE /api/patients/{pid}/delete/")
+header("8. PATIENTS — DELETE /api/patients/<pk>/delete/")
 
-if doctor_token:
-    r = requests.delete(f"{BASE}/patients/{pid}/delete/", headers=auth(doctor_token))
-    check(f"DELETE /api/patients/{pid}/delete/  (as doctor -> 403)", r, 403)
+if doctor_token and created_patient_id:
+    r = requests.delete(f"{BASE}/api/patients/{pk}/delete/", headers=auth(doctor_token))
+    test(f"DELETE /api/patients/{pk}/delete/  (as doctor -> 403)", r, 403)
 
-r = requests.delete(f"{BASE}/patients/{pid}/delete/")
-check(f"DELETE /api/patients/{pid}/delete/  (no token -> 401)", r, 401)
+r = requests.delete(f"{BASE}/api/patients/{pk}/delete/")
+test(f"DELETE /api/patients/{pk}/delete/  (no token -> 401)", r, 401)
 
 if admin_token and created_patient_id:
-    r = requests.delete(f"{BASE}/patients/{created_patient_id}/delete/", headers=auth(admin_token))
-    check(f"DELETE /api/patients/{created_patient_id}/delete/  (as admin -> 204)", r, 204)
+    r = requests.delete(f"{BASE}/api/patients/{pk}/delete/", headers=auth(admin_token))
+    test(f"DELETE /api/patients/{pk}/delete/  (as admin -> 204)", r, 204, show_body=False)
+else:
+    skip("DELETE patient (admin) — no test patient to clean up")
 
-    r = requests.delete(f"{BASE}/patients/999999/delete/", headers=auth(admin_token))
-    check("DELETE /api/patients/999999/delete/  (non-existent -> 404)", r, 404)
+if admin_token and created_patient_id:
+    r = requests.delete(f"{BASE}/api/patients/{pk}/delete/", headers=auth(admin_token))
+    print(f"Status: {r.status_code}")
+    print(f"Response: {r.text}")
+    test(f"DELETE /api/patients/{pk}/delete/  (as admin -> 204)", r, 204, show_body=False)
 
 
-print(f"\n\033[1m{'='*55}\033[0m")
-print("\033[1m  Done. Fix any X lines above.\033[0m")
-print(f"\033[1m{'='*55}\033[0m\n")
+# ══════════════════════════════════════════════
+# SUMMARY
+# ══════════════════════════════════════════════
+total = passed + failed
+print(f"\n{BOLD}{'═'*55}{RESET}")
+if failed == 0:
+    print(f"{BOLD}  {GREEN}ALL {total} TESTS PASSED ✔{RESET}")
+else:
+    print(f"{BOLD}  {GREEN}{passed} passed{RESET}  ·  {RED}{failed} failed{RESET}  ·  {total} total{RESET}")
+print(f"{BOLD}{'═'*55}{RESET}\n")
+
+sys.exit(0 if failed == 0 else 1)
