@@ -5,12 +5,18 @@ from .models import User, Specialty
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
+    list_display = ("username", "email", "is_staff", "is_active")
+    list_filter = ("is_staff", "is_active", "groups")
+
     fieldsets = UserAdmin.fieldsets + (
-        ('Role & Specialty', {'fields': ('role', 'specialty')}),
+        ("Additional Info", {"fields": ("specialty",)}),
     )
-    list_display = ['username', 'email', 'role', 'specialty', 'is_staff']
+
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ("Additional Info", {"fields": ("specialty",)}),
+    )
 
 
 @admin.register(Specialty)
 class SpecialtyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'description']
+    list_display = ("name",)

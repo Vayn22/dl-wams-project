@@ -1,13 +1,14 @@
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import DjangoModelPermissions
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from patients.models import Patient
-from users.decorators import any_role
+from patients.permissions import CanDeletePatient
 
 
 @api_view(['DELETE'])
-@any_role('admin', 'doctor')
+@permission_classes([CanDeletePatient])
 def patient_delete(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
     patient.delete()

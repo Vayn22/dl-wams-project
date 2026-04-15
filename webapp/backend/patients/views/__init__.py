@@ -5,3 +5,8 @@ from .patient_update import patient_update
 from .patient_delete import patient_delete
 from .file_upload import file_upload
 from .file_delete import file_delete
+from .appointment_list import appointment_list
+from .appointment_create import appointment_create
+from .appointment_detail import appointment_detail
+from .appointment_update import appointment_update
+from .appointment_delete import appointment_delete

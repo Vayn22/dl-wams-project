@@ -39,7 +39,7 @@ def login(request):
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'role': user.role,
+            'groups': [group.name for group in user.groups.all()],
             'specialty': user.specialty.name if user.specialty else None,
-        }
+}
     })

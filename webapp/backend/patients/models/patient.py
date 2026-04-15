@@ -32,3 +32,9 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
+
+    class Meta:
+        permissions = [
+            ("export_patient", "Can export patient data"),
+            ("archive_patient", "Can archive patient"),
+        ]

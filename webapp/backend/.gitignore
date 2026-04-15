@@ -59,3 +59,12 @@ media/
 
 # Pyright config
 pyrightconfig.json
+
+
+benv/
+__pycache__/
+*.pyc
+db.sqlite3
+*.zip
+*.txt
+.env

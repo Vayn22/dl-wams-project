@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Patient, MedicalFile
+from .models import Patient, MedicalFile, Appointment
 
 
 @admin.register(Patient)
@@ -11,3 +11,9 @@ class PatientAdmin(admin.ModelAdmin):
 @admin.register(MedicalFile)
 class MedicalFileAdmin(admin.ModelAdmin):
     list_display = ['label', 'patient', 'uploaded_by', 'uploaded_at']
+
+
+@admin.register(Appointment)
+class AppointmentAdmin(admin.ModelAdmin):
+    list_display = ['patient', 'doctor', 'date_time', 'status']
+    list_filter = ['status']

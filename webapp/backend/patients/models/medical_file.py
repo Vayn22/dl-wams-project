@@ -12,3 +12,8 @@ class MedicalFile(models.Model):
 
     def __str__(self):
         return f"{self.label} - {self.patient}"
+
+    class Meta:
+        permissions = [
+            ("download_medicalfile", "Can download medical file"),
+        ]

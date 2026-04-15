@@ -2,17 +2,17 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from patients.models import Patient
-from patients.permissions import CanChangePatient
-from patients.serializers import PatientSerializer
+from patients.models import Appointment
+from patients.permissions import CanChangeAppointment
+from patients.serializers import AppointmentSerializer
 
 
 @api_view(['PUT'])
-@permission_classes([CanChangePatient])
-def patient_update(request, pk):
-    patient = get_object_or_404(Patient, pk=pk)
+@permission_classes([CanChangeAppointment])
+def appointment_update(request, pk):
+    appointment = get_object_or_404(Appointment, pk=pk)
 
-    serializer = PatientSerializer(patient, data=request.data, partial=True)
+    serializer = AppointmentSerializer(appointment, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
