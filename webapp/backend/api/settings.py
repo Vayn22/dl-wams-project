@@ -141,14 +141,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 CORS_ALLOWED_ORIGINS = [
-    "https://dpfront.vercel.app/",
+    "https://dpfront.vercel.app",
     "http://localhost:3000",  # for dev
     "http://127.0.0.1:3000",
 ]
 
 import os
 ALLOWED_HOSTS = [
-    "https://dpfront.vercel.app/",
+    "https://dpfront.vercel.app",
     "https://dl-wams-project.onrender.com",
     "*"
 ]
