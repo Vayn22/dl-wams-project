@@ -44,7 +44,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -140,8 +140,13 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
-# CORS
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",    # React dev server
+    "https://dpfront.vercel.app/",
+    "http://localhost:3000",  # for dev
     "http://127.0.0.1:3000",
+]
+
+import os
+ALLOWED_HOSTS = [
+    "https://dpfront.vercel.app/"
 ]
