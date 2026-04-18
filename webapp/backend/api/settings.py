@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-!b2(v-2jj1d2sg--mb#4^c5qsb&0ngvxymhybpat%q5waud3=i'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = []
 
@@ -148,5 +148,7 @@ CORS_ALLOWED_ORIGINS = [
 
 import os
 ALLOWED_HOSTS = [
-    "https://dpfront.vercel.app/"
+    "https://dpfront.vercel.app/",
+    "https://dl-wams-project.onrender.com",
+    "*"
 ]
