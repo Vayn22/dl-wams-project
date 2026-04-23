@@ -6,7 +6,7 @@ from users.permissions import CanAddUser
 from users.serializers import DoctorSerializer
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([CanAddUser])
 def doctor_create(request):
     serializer = DoctorSerializer(data=request.data)

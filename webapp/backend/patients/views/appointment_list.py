@@ -5,7 +5,7 @@ from patients.permissions import CanViewAppointment
 from patients.serializers import AppointmentSerializer
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewAppointment])
 def appointment_list(request):
     appointments = Appointment.objects.all()

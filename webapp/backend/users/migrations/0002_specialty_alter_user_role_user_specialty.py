@@ -7,26 +7,44 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Specialty',
+            name="Specialty",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True)),
-                ('description', models.TextField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, unique=True)),
+                ("description", models.TextField(blank=True, null=True)),
             ],
         ),
         migrations.AlterField(
-            model_name='user',
-            name='role',
-            field=models.CharField(choices=[('admin', 'Admin'), ('doctor', 'Doctor')], default='doctor', max_length=20),
+            model_name="user",
+            name="role",
+            field=models.CharField(
+                choices=[("admin", "Admin"), ("doctor", "Doctor")],
+                default="doctor",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='specialty',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='doctors', to='users.specialty'),
+            model_name="user",
+            name="specialty",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="doctors",
+                to="users.specialty",
+            ),
         ),
     ]

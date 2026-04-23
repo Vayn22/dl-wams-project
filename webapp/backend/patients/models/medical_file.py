@@ -4,10 +4,12 @@ from .patient import Patient
 
 
 class MedicalFile(models.Model):
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='files')
-    file = models.FileField(upload_to='medical_files/')
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name="files")
+    file = models.FileField(upload_to="medical_files/")
     label = models.CharField(max_length=100)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_files')
+    uploaded_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="uploaded_files"
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

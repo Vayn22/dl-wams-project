@@ -5,7 +5,7 @@ from patients.serializers import PatientSerializer
 from patients.permissions import CanViewPatient
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewPatient])
 def patient_list(request):
     patients = Patient.objects.all()

@@ -5,10 +5,7 @@ class AIModel(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 
-    specialties = models.ManyToManyField(
-        "users.Specialty",
-        related_name="ai_models"
-    )
+    specialties = models.ManyToManyField("users.Specialty", related_name="ai_models")
 
     type = models.CharField(
         max_length=50,
@@ -16,7 +13,7 @@ class AIModel(models.Model):
             ("image", "Image"),
             ("text", "Text"),
         ],
-        default="image"
+        default="image",
     )
 
     code = models.CharField(max_length=100, unique=True)

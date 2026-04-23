@@ -5,7 +5,7 @@ from ai.permissions import CanRunAIModel
 from ai.services.ai_runner import run_ai_model
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([CanRunAIModel])
 def ai_run(request):
     model_id = request.data.get("model_id")
@@ -21,7 +21,4 @@ def ai_run(request):
 
     result = run_ai_model(model, image)
 
-    return Response({
-        "model": model.name,
-        "result": result
-    })
+    return Response({"model": model.name, "result": result})

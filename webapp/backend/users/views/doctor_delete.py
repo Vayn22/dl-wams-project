@@ -6,7 +6,7 @@ from users.models import User
 from users.permissions import CanDeleteUser
 
 
-@api_view(['DELETE'])
+@api_view(["DELETE"])
 @permission_classes([CanDeleteUser])
 def doctor_delete(request, pk):
     doctor = get_object_or_404(User, pk=pk, groups__name="Doctor")

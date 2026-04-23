@@ -93,8 +93,12 @@ admin_login = requests.post(
     json={"username": ADMIN_USERNAME, "password": ADMIN_PASSWORD},
 )
 test("POST /api/users/login/  (admin -> 200)", admin_login, 200)
-admin_token = admin_login.json().get("access_token") if admin_login.status_code == 200 else None
-admin_refresh_token = admin_login.json().get("refresh_token") if admin_login.status_code == 200 else None
+admin_token = (
+    admin_login.json().get("access_token") if admin_login.status_code == 200 else None
+)
+admin_refresh_token = (
+    admin_login.json().get("refresh_token") if admin_login.status_code == 200 else None
+)
 if admin_login.status_code == 200:
     admin_groups = admin_login.json().get("user", {}).get("groups", [])
     test_contains("Login payload groups contain Admin", admin_groups, "Admin")
@@ -104,14 +108,24 @@ doctor_login = requests.post(
     json={"username": DOCTOR_USERNAME, "password": DOCTOR_PASSWORD},
 )
 test("POST /api/users/login/  (doctor -> 200)", doctor_login, 200)
-doctor_token = doctor_login.json().get("access_token") if doctor_login.status_code == 200 else None
-doctor_refresh_token = doctor_login.json().get("refresh_token") if doctor_login.status_code == 200 else None
+doctor_token = (
+    doctor_login.json().get("access_token") if doctor_login.status_code == 200 else None
+)
+doctor_refresh_token = (
+    doctor_login.json().get("refresh_token")
+    if doctor_login.status_code == 200
+    else None
+)
 if doctor_login.status_code == 200:
     doctor_groups = doctor_login.json().get("user", {}).get("groups", [])
     test_contains("Login payload groups contain Doctor", doctor_groups, "Doctor")
 
-print(f"  {'✔' if admin_token else '✘'}  Admin token:  {'obtained' if admin_token else RED + 'FAILED' + RESET}")
-print(f"  {'✔' if doctor_token else '✘'}  Doctor token: {'obtained' if doctor_token else RED + 'FAILED' + RESET}")
+print(
+    f"  {'✔' if admin_token else '✘'}  Admin token:  {'obtained' if admin_token else RED + 'FAILED' + RESET}"
+)
+print(
+    f"  {'✔' if doctor_token else '✘'}  Doctor token: {'obtained' if doctor_token else RED + 'FAILED' + RESET}"
+)
 
 if not admin_token and not doctor_token:
     print(f"\n{RED}  Both tokens failed. Is the server running? Exiting.{RESET}\n")
@@ -122,7 +136,9 @@ if not admin_token and not doctor_token:
 # ─────────────────────────────────────────────
 header("1. AUTH — /api/users/login/")
 
-r = requests.post(f"{BASE}/api/users/login/", json={"username": "wrong", "password": "wrong"})
+r = requests.post(
+    f"{BASE}/api/users/login/", json={"username": "wrong", "password": "wrong"}
+)
 test("POST /api/users/login/  (bad credentials -> 401)", r, 401)
 
 r = requests.post(f"{BASE}/api/users/login/", json={})
@@ -134,7 +150,9 @@ test("POST /api/users/login/  (empty body -> 400)", r, 400)
 header("2. AUTH — /api/token/refresh/")
 
 if admin_refresh_token:
-    r = requests.post(f"{BASE}/api/token/refresh/", json={"refresh": admin_refresh_token})
+    r = requests.post(
+        f"{BASE}/api/token/refresh/", json={"refresh": admin_refresh_token}
+    )
     test("POST /api/token/refresh/  (valid refresh -> 200)", r, 200)
 
 r = requests.post(f"{BASE}/api/token/refresh/", json={"refresh": "invalidtoken"})
@@ -164,25 +182,33 @@ if admin_token:
         "email": f"drtest_script_{RUN_ID}@email.com",
         "password": "testpassword123",
     }
-    r = requests.post(f"{BASE}/api/users/doctors/create/", json=NEW_DOCTOR, headers=auth(admin_token))
+    r = requests.post(
+        f"{BASE}/api/users/doctors/create/", json=NEW_DOCTOR, headers=auth(admin_token)
+    )
     test("POST /api/users/doctors/create/  (as admin -> 201)", r, 201)
     if r.status_code == 201:
         created_doctor_id = r.json().get("id")
         print(f"        {GREEN}↳ Created doctor ID: {created_doctor_id}{RESET}")
 
 if doctor_token:
-    r = requests.post(f"{BASE}/api/users/doctors/create/", json={}, headers=auth(doctor_token))
+    r = requests.post(
+        f"{BASE}/api/users/doctors/create/", json={}, headers=auth(doctor_token)
+    )
     test("POST /api/users/doctors/create/  (as doctor -> 403)", r, 403)
 
 r = requests.post(f"{BASE}/api/users/doctors/create/", json={})
 test("POST /api/users/doctors/create/  (no token -> 401)", r, 401)
 
 if admin_token:
-    r = requests.post(f"{BASE}/api/users/doctors/create/", json={}, headers=auth(admin_token))
+    r = requests.post(
+        f"{BASE}/api/users/doctors/create/", json={}, headers=auth(admin_token)
+    )
     test("POST /api/users/doctors/create/  (empty body -> 400)", r, 400)
 
 if admin_token and created_doctor_id:
-    r = requests.get(f"{BASE}/api/users/doctors/{created_doctor_id}/", headers=auth(admin_token))
+    r = requests.get(
+        f"{BASE}/api/users/doctors/{created_doctor_id}/", headers=auth(admin_token)
+    )
     test(f"GET /api/users/doctors/{created_doctor_id}/  (as admin -> 200)", r, 200)
 
     r = requests.get(f"{BASE}/api/users/doctors/999999/", headers=auth(admin_token))
@@ -193,7 +219,9 @@ if admin_token and created_doctor_id:
         json={"email": "updated@email.com"},
         headers=auth(admin_token),
     )
-    test(f"PUT /api/users/doctors/{created_doctor_id}/update/  (as admin -> 200)", r, 200)
+    test(
+        f"PUT /api/users/doctors/{created_doctor_id}/update/  (as admin -> 200)", r, 200
+    )
 
 if doctor_token and created_doctor_id:
     r = requests.put(
@@ -201,7 +229,11 @@ if doctor_token and created_doctor_id:
         json={"email": "hacked@email.com"},
         headers=auth(doctor_token),
     )
-    test(f"PUT /api/users/doctors/{created_doctor_id}/update/  (as doctor -> 403)", r, 403)
+    test(
+        f"PUT /api/users/doctors/{created_doctor_id}/update/  (as doctor -> 403)",
+        r,
+        403,
+    )
 
 # ─────────────────────────────────────────────
 # 4. PATIENTS — List & Create
@@ -230,7 +262,9 @@ NEW_PATIENT = {
 }
 
 if admin_token:
-    r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(admin_token))
+    r = requests.post(
+        f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(admin_token)
+    )
     expected = 200 if r.status_code == 200 else 201
     test("POST /api/patients/create/  (as admin -> 201)", r, expected)
     if r.status_code in (200, 201):
@@ -239,14 +273,18 @@ if admin_token:
         print(f"        {GREEN}↳ Patient ID: {created_patient_id}{RESET}")
 
 if doctor_token:
-    r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(doctor_token))
+    r = requests.post(
+        f"{BASE}/api/patients/create/", json=NEW_PATIENT, headers=auth(doctor_token)
+    )
     test("POST /api/patients/create/  (duplicate -> 200 existing)", r, 200)
 
 r = requests.post(f"{BASE}/api/patients/create/", json=NEW_PATIENT)
 test("POST /api/patients/create/  (no token -> 401)", r, 401)
 
 if admin_token:
-    r = requests.post(f"{BASE}/api/patients/create/", json={}, headers=auth(admin_token))
+    r = requests.post(
+        f"{BASE}/api/patients/create/", json={}, headers=auth(admin_token)
+    )
     test("POST /api/patients/create/  (empty body -> 400)", r, 400)
 
     r = requests.post(
@@ -299,7 +337,9 @@ test(f"PUT /api/patients/{pk}/update/  (no token -> 401)", r, 401)
 
 if admin_token:
     r = requests.delete(f"{BASE}/api/patients/{pk}/delete/", headers=auth(admin_token))
-    test(f"DELETE /api/patients/{pk}/delete/  (as admin -> 204)", r, 204, show_body=False)
+    test(
+        f"DELETE /api/patients/{pk}/delete/  (as admin -> 204)", r, 204, show_body=False
+    )
 
 r = requests.delete(f"{BASE}/api/patients/{pk}/delete/")
 test(f"DELETE /api/patients/{pk}/delete/  (no token -> 401)", r, 401)
@@ -334,7 +374,11 @@ if admin_token:
             data={"label": "Test MRI Scan"},
             headers=auth(admin_token),
         )
-        test(f"POST /api/patients/{file_patient_id}/files/upload/  (as admin -> 201)", r, 201)
+        test(
+            f"POST /api/patients/{file_patient_id}/files/upload/  (as admin -> 201)",
+            r,
+            201,
+        )
         if r.status_code == 201:
             file_id = r.json().get("id")
             if file_id:
@@ -343,7 +387,9 @@ if admin_token:
 
 if doctor_token:
     # Reuse the same file patient if it exists
-    file_patient_id = file_patient_id if "file_patient_id" in locals() else created_patient_id
+    file_patient_id = (
+        file_patient_id if "file_patient_id" in locals() else created_patient_id
+    )
     if file_patient_id:
         dummy = ("test_file2.txt", b"dummy medical content 2", "text/plain")
         r = requests.post(
@@ -352,14 +398,21 @@ if doctor_token:
             data={"label": "Doctor Upload"},
             headers=auth(doctor_token),
         )
-        test(f"POST /api/patients/{file_patient_id}/files/upload/  (as doctor -> 201)", r, 201)
+        test(
+            f"POST /api/patients/{file_patient_id}/files/upload/  (as doctor -> 201)",
+            r,
+            201,
+        )
         if r.status_code == 201:
             file_id = r.json().get("id")
             if file_id:
                 uploaded_file_ids.append(file_id)
                 print(f"        {GREEN}↳ Uploaded doctor file ID: {file_id}{RESET}")
 
-r = requests.post(f"{BASE}/api/patients/{pk}/files/upload/", files={"file": ("x.txt", b"x", "text/plain")})
+r = requests.post(
+    f"{BASE}/api/patients/{pk}/files/upload/",
+    files={"file": ("x.txt", b"x", "text/plain")},
+)
 test(f"POST /api/patients/{pk}/files/upload/  (no token -> 401)", r, 401)
 
 if admin_token and uploaded_file_ids:
@@ -368,10 +421,17 @@ if admin_token and uploaded_file_ids:
             f"{BASE}/api/patients/files/{file_id}/delete/",
             headers=auth(admin_token),
         )
-        test(f"DELETE /api/patients/files/{file_id}/delete/  (as admin -> 204)", r, 204, show_body=False)
+        test(
+            f"DELETE /api/patients/files/{file_id}/delete/  (as admin -> 204)",
+            r,
+            204,
+            show_body=False,
+        )
 
 if admin_token:
-    r = requests.delete(f"{BASE}/api/patients/files/999999/delete/", headers=auth(admin_token))
+    r = requests.delete(
+        f"{BASE}/api/patients/files/999999/delete/", headers=auth(admin_token)
+    )
     test("DELETE /api/patients/files/999999/delete/  (non-existent -> 404)", r, 404)
 
 # ─────────────────────────────────────────────
@@ -423,13 +483,17 @@ if doctor_token and appt_patient_id:
     test("POST /api/patients/appointments/create/  (as doctor -> 201)", r, 201)
     if r.status_code == 201:
         created_appointment_id = r.json().get("id")
-        print(f"        {GREEN}↳ Created appointment ID: {created_appointment_id}{RESET}")
+        print(
+            f"        {GREEN}↳ Created appointment ID: {created_appointment_id}{RESET}"
+        )
 
 r = requests.post(f"{BASE}/api/patients/appointments/create/", json={})
 test("POST /api/patients/appointments/create/  (no token -> 401)", r, 401)
 
 if doctor_token:
-    r = requests.post(f"{BASE}/api/patients/appointments/create/", json={}, headers=auth(doctor_token))
+    r = requests.post(
+        f"{BASE}/api/patients/appointments/create/", json={}, headers=auth(doctor_token)
+    )
     test("POST /api/patients/appointments/create/  (empty body -> 400)", r, 400)
 
 if admin_token and created_appointment_id:
@@ -437,17 +501,27 @@ if admin_token and created_appointment_id:
         f"{BASE}/api/patients/appointments/{created_appointment_id}/",
         headers=auth(admin_token),
     )
-    test(f"GET /api/patients/appointments/{created_appointment_id}/  (as admin -> 200)", r, 200)
+    test(
+        f"GET /api/patients/appointments/{created_appointment_id}/  (as admin -> 200)",
+        r,
+        200,
+    )
 
 if doctor_token and created_appointment_id:
     r = requests.get(
         f"{BASE}/api/patients/appointments/{created_appointment_id}/",
         headers=auth(doctor_token),
     )
-    test(f"GET /api/patients/appointments/{created_appointment_id}/  (as doctor -> 200)", r, 200)
+    test(
+        f"GET /api/patients/appointments/{created_appointment_id}/  (as doctor -> 200)",
+        r,
+        200,
+    )
 
 if admin_token:
-    r = requests.get(f"{BASE}/api/patients/appointments/999999/", headers=auth(admin_token))
+    r = requests.get(
+        f"{BASE}/api/patients/appointments/999999/", headers=auth(admin_token)
+    )
     test("GET /api/patients/appointments/999999/  (non-existent -> 404)", r, 404)
 
 if admin_token and created_appointment_id:
@@ -456,7 +530,11 @@ if admin_token and created_appointment_id:
         json={"status": "completed", "notes": "Updated notes."},
         headers=auth(admin_token),
     )
-    test(f"PUT /api/patients/appointments/{created_appointment_id}/update/  (as admin -> 200)", r, 200)
+    test(
+        f"PUT /api/patients/appointments/{created_appointment_id}/update/  (as admin -> 200)",
+        r,
+        200,
+    )
 
 if doctor_token and created_appointment_id:
     r = requests.put(
@@ -464,7 +542,11 @@ if doctor_token and created_appointment_id:
         json={"notes": "Doctor updated notes."},
         headers=auth(doctor_token),
     )
-    test(f"PUT /api/patients/appointments/{created_appointment_id}/update/  (as doctor -> 200)", r, 200)
+    test(
+        f"PUT /api/patients/appointments/{created_appointment_id}/update/  (as doctor -> 200)",
+        r,
+        200,
+    )
 
 r = requests.put(f"{BASE}/api/patients/appointments/1/update/", json={"notes": "x"})
 test("PUT /api/patients/appointments/1/update/  (no token -> 401)", r, 401)
@@ -501,14 +583,25 @@ if admin_token and created_appointment_id:
         f"{BASE}/api/patients/appointments/{created_appointment_id}/delete/",
         headers=auth(admin_token),
     )
-    test(f"DELETE /api/patients/appointments/{created_appointment_id}/delete/  (as admin -> 204)", r, 204, show_body=False)
+    test(
+        f"DELETE /api/patients/appointments/{created_appointment_id}/delete/  (as admin -> 204)",
+        r,
+        204,
+        show_body=False,
+    )
 
 r = requests.delete(f"{BASE}/api/patients/appointments/1/delete/")
 test("DELETE /api/patients/appointments/1/delete/  (no token -> 401)", r, 401)
 
 if admin_token:
-    r = requests.delete(f"{BASE}/api/patients/appointments/999999/delete/", headers=auth(admin_token))
-    test("DELETE /api/patients/appointments/999999/delete/  (non-existent -> 404)", r, 404)
+    r = requests.delete(
+        f"{BASE}/api/patients/appointments/999999/delete/", headers=auth(admin_token)
+    )
+    test(
+        "DELETE /api/patients/appointments/999999/delete/  (non-existent -> 404)",
+        r,
+        404,
+    )
 
 # cleanup past appointment if it was created
 if admin_token and past_appointment_id:
@@ -562,7 +655,9 @@ header("10. EDGE CASES")
 
 if admin_token:
     # malformed token
-    r = requests.get(f"{BASE}/api/users/me/", headers={"Authorization": "Bearer notavalidtoken"})
+    r = requests.get(
+        f"{BASE}/api/users/me/", headers={"Authorization": "Bearer notavalidtoken"}
+    )
     test("GET /api/users/me/  (malformed token -> 401)", r, 401)
 
     # missing Bearer prefix
@@ -584,11 +679,16 @@ if admin_token:
     private_patient_id = r.json().get("id") if r.status_code == 201 else None
 
     if private_patient_id and doctor_token:
-        r = requests.get(f"{BASE}/api/patients/{private_patient_id}/", headers=auth(doctor_token))
+        r = requests.get(
+            f"{BASE}/api/patients/{private_patient_id}/", headers=auth(doctor_token)
+        )
         test("GET /api/patients/<private>/  (doctor can view -> 200)", r, 200)
 
         # cleanup
-        requests.delete(f"{BASE}/api/patients/{private_patient_id}/delete/", headers=auth(admin_token))
+        requests.delete(
+            f"{BASE}/api/patients/{private_patient_id}/delete/",
+            headers=auth(admin_token),
+        )
 
 # ─────────────────────────────────────────────
 # 11. SUMMARY
@@ -598,7 +698,9 @@ print(f"\n{BOLD}{'═' * 55}{RESET}")
 if failed == 0:
     print(f"{BOLD}  {GREEN}ALL {total} TESTS PASSED ✔{RESET}")
 else:
-    print(f"{BOLD}  {GREEN}{passed} passed{RESET}  ·  {RED}{failed} failed{RESET}  ·  {total} total{RESET}")
+    print(
+        f"{BOLD}  {GREEN}{passed} passed{RESET}  ·  {RED}{failed} failed{RESET}  ·  {total} total{RESET}"
+    )
 print(f"{BOLD}{'═' * 55}{RESET}\n")
 
 sys.exit(0 if failed == 0 else 1)

@@ -6,7 +6,7 @@ from patients.models import Appointment
 from patients.permissions import CanDeleteAppointment
 
 
-@api_view(['DELETE'])
+@api_view(["DELETE"])
 @permission_classes([CanDeleteAppointment])
 def appointment_delete(request, pk):
     appointment = get_object_or_404(Appointment, pk=pk)

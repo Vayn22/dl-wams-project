@@ -6,20 +6,17 @@ from patients.permissions import CanAddPatient
 from patients.serializers import PatientSerializer
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([CanAddPatient])
 def patient_create(request):
-    phone = request.data.get('phone_number')
+    phone = request.data.get("phone_number")
     existing = Patient.objects.filter(phone_number=phone).first()
 
     if existing:
         serializer = PatientSerializer(existing)
         return Response(
-            {
-                'detail': 'Patient already exists.',
-                'patient': serializer.data
-            },
-            status=status.HTTP_200_OK
+            {"detail": "Patient already exists.", "patient": serializer.data},
+            status=status.HTTP_200_OK,
         )
 
     serializer = PatientSerializer(data=request.data)

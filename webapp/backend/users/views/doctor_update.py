@@ -7,7 +7,7 @@ from users.permissions import CanChangeUser
 from users.serializers import DoctorSerializer
 
 
-@api_view(['PUT'])
+@api_view(["PUT"])
 @permission_classes([CanChangeUser])
 def doctor_update(request, pk):
     doctor = get_object_or_404(User, pk=pk, groups__name="Doctor")

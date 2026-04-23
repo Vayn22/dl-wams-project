@@ -6,15 +6,21 @@ from .patient import Patient
 
 class Appointment(models.Model):
     class Status(models.TextChoices):
-        SCHEDULED = 'scheduled', 'Scheduled'
-        COMPLETED = 'completed', 'Completed'
-        CANCELLED = 'cancelled', 'Cancelled'
-        EXPIRED = 'expired', 'Expired'
+        SCHEDULED = "scheduled", "Scheduled"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+        EXPIRED = "expired", "Expired"
 
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
-    doctor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments')
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name="appointments"
+    )
+    doctor = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="appointments"
+    )
     date_time = models.DateTimeField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.SCHEDULED
+    )
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

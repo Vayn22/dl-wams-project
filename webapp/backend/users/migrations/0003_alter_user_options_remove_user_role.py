@@ -6,16 +6,22 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0002_specialty_alter_user_role_user_specialty'),
+        ("users", "0002_specialty_alter_user_role_user_specialty"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='user',
-            options={'permissions': [('assign_role', 'Can assign roles to users'), ('activate_user', 'Can activate user'), ('deactivate_user', 'Can deactivate user')]},
+            name="user",
+            options={
+                "permissions": [
+                    ("assign_role", "Can assign roles to users"),
+                    ("activate_user", "Can activate user"),
+                    ("deactivate_user", "Can deactivate user"),
+                ]
+            },
         ),
         migrations.RemoveField(
-            model_name='user',
-            name='role',
+            model_name="user",
+            name="role",
         ),
     ]

@@ -7,7 +7,7 @@ from patients.permissions import CanAddMedicalFile
 from patients.serializers import MedicalFileSerializer
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([CanAddMedicalFile])
 def file_upload(request, pk):
     patient = get_object_or_404(Patient, pk=pk)

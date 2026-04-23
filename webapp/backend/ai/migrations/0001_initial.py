@@ -8,22 +8,45 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('users', '0004_alter_user_options'),
+        ("users", "0004_alter_user_options"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AIModel',
+            name="AIModel",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('description', models.TextField(blank=True)),
-                ('type', models.CharField(choices=[('image', 'Image'), ('text', 'Text')], default='image', max_length=50)),
-                ('code', models.CharField(max_length=100, unique=True)),
-                ('specialties', models.ManyToManyField(related_name='ai_models', to='users.specialty')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "type",
+                    models.CharField(
+                        choices=[("image", "Image"), ("text", "Text")],
+                        default="image",
+                        max_length=50,
+                    ),
+                ),
+                ("code", models.CharField(max_length=100, unique=True)),
+                (
+                    "specialties",
+                    models.ManyToManyField(
+                        related_name="ai_models", to="users.specialty"
+                    ),
+                ),
             ],
             options={
-                'permissions': [('view_ai_model', 'Can view AI models'), ('run_ai_model', 'Can run AI models')],
+                "permissions": [
+                    ("view_ai_model", "Can view AI models"),
+                    ("run_ai_model", "Can run AI models"),
+                ],
             },
         ),
     ]

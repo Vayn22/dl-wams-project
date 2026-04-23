@@ -6,20 +6,32 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('patients', '0002_appointment'),
+        ("patients", "0002_appointment"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='appointment',
-            options={'permissions': [('cancel_appointment', 'Can cancel appointment'), ('reschedule_appointment', 'Can reschedule appointment')]},
+            name="appointment",
+            options={
+                "permissions": [
+                    ("cancel_appointment", "Can cancel appointment"),
+                    ("reschedule_appointment", "Can reschedule appointment"),
+                ]
+            },
         ),
         migrations.AlterModelOptions(
-            name='medicalfile',
-            options={'permissions': [('download_medicalfile', 'Can download medical file')]},
+            name="medicalfile",
+            options={
+                "permissions": [("download_medicalfile", "Can download medical file")]
+            },
         ),
         migrations.AlterModelOptions(
-            name='patient',
-            options={'permissions': [('export_patient', 'Can export patient data'), ('archive_patient', 'Can archive patient')]},
+            name="patient",
+            options={
+                "permissions": [
+                    ("export_patient", "Can export patient data"),
+                    ("archive_patient", "Can archive patient"),
+                ]
+            },
         ),
     ]

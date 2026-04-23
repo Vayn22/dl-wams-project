@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group, Permission
 @receiver(post_migrate)
 def create_groups_and_permissions(sender, **kwargs):
 
-     #ONLY RUN FOR USERS APP
+    # ONLY RUN FOR USERS APP
     if sender.name != "users":
         return
     print("\n🔧 Setting up groups and permissions...")
@@ -25,20 +25,17 @@ def create_groups_and_permissions(sender, **kwargs):
         "delete_appointment",
         "view_appointment",
         "cancel_appointment",
-
         # Medical File
         "add_medicalfile",
         "delete_medicalfile",
         "view_medicalfile",
         "download_medicalfile",
-
         # Patient
         "add_patient",
         "change_patient",
         "delete_patient",
         "view_patient",
         "archive_patient",
-
         # AI
         "view_ai_model",
         "run_ai_model",

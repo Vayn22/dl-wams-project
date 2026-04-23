@@ -6,7 +6,7 @@ from users.permissions import CanViewUser
 from users.serializers import DoctorSerializer
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewUser])
 def doctor_detail(request, pk):
     doctor = get_object_or_404(User, pk=pk, groups__name="Doctor")

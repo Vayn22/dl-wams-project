@@ -15,31 +15,94 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Patient',
+            name="Patient",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('first_name', models.CharField(max_length=100)),
-                ('last_name', models.CharField(max_length=100)),
-                ('date_of_birth', models.DateField()),
-                ('gender', models.CharField(choices=[('male', 'Male'), ('female', 'Female'), ('other', 'Other')], max_length=10)),
-                ('blood_type', models.CharField(blank=True, choices=[('A+', 'A+'), ('A-', 'A-'), ('B+', 'B+'), ('B-', 'B-'), ('AB+', 'AB+'), ('AB-', 'AB-'), ('O+', 'O+'), ('O-', 'O-')], max_length=5, null=True)),
-                ('phone_number', models.CharField(max_length=20, unique=True)),
-                ('address', models.TextField(blank=True, null=True)),
-                ('notes', models.TextField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('doctors', models.ManyToManyField(blank=True, related_name='patients', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("first_name", models.CharField(max_length=100)),
+                ("last_name", models.CharField(max_length=100)),
+                ("date_of_birth", models.DateField()),
+                (
+                    "gender",
+                    models.CharField(
+                        choices=[
+                            ("male", "Male"),
+                            ("female", "Female"),
+                            ("other", "Other"),
+                        ],
+                        max_length=10,
+                    ),
+                ),
+                (
+                    "blood_type",
+                    models.CharField(
+                        blank=True,
+                        choices=[
+                            ("A+", "A+"),
+                            ("A-", "A-"),
+                            ("B+", "B+"),
+                            ("B-", "B-"),
+                            ("AB+", "AB+"),
+                            ("AB-", "AB-"),
+                            ("O+", "O+"),
+                            ("O-", "O-"),
+                        ],
+                        max_length=5,
+                        null=True,
+                    ),
+                ),
+                ("phone_number", models.CharField(max_length=20, unique=True)),
+                ("address", models.TextField(blank=True, null=True)),
+                ("notes", models.TextField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "doctors",
+                    models.ManyToManyField(
+                        blank=True, related_name="patients", to=settings.AUTH_USER_MODEL
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='MedicalFile',
+            name="MedicalFile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(upload_to='medical_files/')),
-                ('label', models.CharField(max_length=100)),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True)),
-                ('uploaded_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='uploaded_files', to=settings.AUTH_USER_MODEL)),
-                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='files', to='patients.patient')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("file", models.FileField(upload_to="medical_files/")),
+                ("label", models.CharField(max_length=100)),
+                ("uploaded_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "uploaded_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="uploaded_files",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "patient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="files",
+                        to="patients.patient",
+                    ),
+                ),
             ],
         ),
     ]

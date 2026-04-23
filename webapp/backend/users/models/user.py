@@ -10,7 +10,7 @@ class User(AbstractUser):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='doctors'
+        related_name="doctors",
     )
 
     def __str__(self):
@@ -18,7 +18,7 @@ class User(AbstractUser):
 
     class Meta:
         permissions = [
-            ("assign_group", "Can assign groups to users"), 
+            ("assign_group", "Can assign groups to users"),
             ("activate_user", "Can activate user"),
             ("deactivate_user", "Can deactivate user"),
         ]

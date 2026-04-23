@@ -7,7 +7,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
 
         # ✅ Replace role with groups
-        token['groups'] = [group.name for group in user.groups.all()]
-        token['email'] = user.email
+        token["groups"] = [group.name for group in user.groups.all()]
+        token["email"] = user.email
 
         return token

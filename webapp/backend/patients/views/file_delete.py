@@ -6,7 +6,7 @@ from patients.models import MedicalFile
 from patients.permissions import CanDeleteMedicalFile
 
 
-@api_view(['DELETE'])
+@api_view(["DELETE"])
 @permission_classes([CanDeleteMedicalFile])
 def file_delete(request, pk):
     file = get_object_or_404(MedicalFile, pk=pk)

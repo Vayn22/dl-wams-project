@@ -6,7 +6,7 @@ from patients.permissions import CanViewPatient
 from patients.serializers import PatientSerializer
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewPatient])
 def patient_detail(request, pk):
     patient = get_object_or_404(Patient, pk=pk)

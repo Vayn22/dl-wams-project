@@ -5,7 +5,7 @@ from ai.serializers import AIModelSerializer
 from ai.permissions import CanViewAIModel
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewAIModel])
 def ai_model_list(request):
     user = request.user
@@ -13,9 +13,7 @@ def ai_model_list(request):
     if user.is_superuser:
         models = AIModel.objects.all()
     else:
-        models = AIModel.objects.filter(
-            specialties=user.specialty
-        )
+        models = AIModel.objects.filter(specialties=user.specialty)
 
     serializer = AIModelSerializer(models, many=True)
     return Response(serializer.data)

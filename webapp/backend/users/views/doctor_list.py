@@ -5,7 +5,7 @@ from users.serializers import DoctorSerializer
 from users.permissions import CanViewUser
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([CanViewUser])
 def doctor_list(request):
     doctors = User.objects.filter(groups__name="Doctor")

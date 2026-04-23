@@ -7,13 +7,13 @@ from patients.serializers import AppointmentSerializer
 from django.shortcuts import get_object_or_404
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([CanAddAppointment])
 def appointment_create(request):
     data = request.data.copy()
 
     # ✅ AUTO SET DOCTOR
-    data['doctor'] = request.user.id
+    data["doctor"] = request.user.id
 
     serializer = AppointmentSerializer(data=data)
     if serializer.is_valid():

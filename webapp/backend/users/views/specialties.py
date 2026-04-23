@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from users.models import Specialty
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def specialties_list(request):
-    specialties = Specialty.objects.all().values('id', 'name')
+    specialties = Specialty.objects.all().values("id", "name")
     return Response(list(specialties))

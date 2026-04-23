@@ -7,7 +7,7 @@ from patients.permissions import CanChangeAppointment
 from patients.serializers import AppointmentSerializer
 
 
-@api_view(['PUT'])
+@api_view(["PUT"])
 @permission_classes([CanChangeAppointment])
 def appointment_update(request, pk):
     appointment = get_object_or_404(Appointment, pk=pk)

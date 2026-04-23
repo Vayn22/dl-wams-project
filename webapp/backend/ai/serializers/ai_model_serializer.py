@@ -7,4 +7,4 @@ class AIModelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AIModel
-        fields = ['id', 'name', 'description', 'type', 'specialties']
+        fields = ["id", "name", "description", "type", "specialties"]

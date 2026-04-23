@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([AllowAny])
 def dev_create_user(request):
     username = request.data.get("username")
