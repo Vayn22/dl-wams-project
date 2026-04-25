@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+}
+
+* {
+  @apply border-slate-200;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+.card-surface {
+  @apply rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200;
+}
+
+.input-base {
+  @apply h-10 w-full rounded-lg border-slate-200 transition-all duration-200 focus:ring-2 focus:ring-sky-500;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.page-enter {
+  animation: pageFadeIn 200ms ease-out;
+}
