@@ -1,12 +1,11 @@
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
-from ..serializers.user_me import UserMeSerializer
+from ..serializers import UserMeSerializer
 
 
-class MeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        return Response(UserMeSerializer(request.user).data)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    return Response(UserMeSerializer(request.user).data)
