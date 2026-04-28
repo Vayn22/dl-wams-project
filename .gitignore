@@ -8,6 +8,7 @@ __pycache__/
 # Virtual Environment - Add both folder names if they have venvs
 venv/
 benv/
+fenv/
 env/
 .venv/
 
