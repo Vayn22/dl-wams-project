@@ -30,9 +30,9 @@ export default function AdminDashboardPage() {
       setError("");
       try {
         const [apiDoctors, apiPatients, specialties] = await Promise.all([
-          listDoctorsApi(token),
-          listPatientsApi(token),
-          listSpecialtiesApi(token),
+          listDoctorsApi(),
+          listPatientsApi(),
+          listSpecialtiesApi(),
         ]);
         const specialtiesById = Object.fromEntries(
           specialties.map((item) => [item.id, item])

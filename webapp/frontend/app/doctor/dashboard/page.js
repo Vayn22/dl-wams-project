@@ -26,8 +26,8 @@ export default function DoctorDashboardPage() {
       setError("");
       try {
         const [apiPatients, apiAppointments] = await Promise.all([
-          listPatientsApi(token),
-          listAppointmentsApi(token),
+          listPatientsApi(),
+          listAppointmentsApi(),
         ]);
         const patientsData = apiPatients.map(apiPatientToUi);
         const patientsById = Object.fromEntries(patientsData.map((item) => [item.id, item]));

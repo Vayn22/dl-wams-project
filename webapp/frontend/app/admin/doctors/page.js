@@ -50,9 +50,9 @@ export default function AdminDoctorsPage() {
     setError("");
     try {
       const [apiDoctors, apiPatients, apiSpecialties] = await Promise.all([
-        listDoctorsApi(token),
-        listPatientsApi(token),
-        listSpecialtiesApi(token),
+        listDoctorsApi(),
+        listPatientsApi(),
+        listSpecialtiesApi(),
       ]);
       const specialtiesById = Object.fromEntries(
         apiSpecialties.map((item) => [item.id, item])
@@ -90,13 +90,13 @@ export default function AdminDoctorsPage() {
       };
 
       if (editingDoctor) {
-        await updateDoctorApi(token, editingDoctor.id, {
+        await updateDoctorApi(editingDoctor.id, {
           ...basePayload,
           ...(values.password ? { password: values.password } : {}),
         });
         pushToast({ message: "Medecin mis a jour avec succes." });
       } else {
-        await createDoctorApi(token, {
+        await createDoctorApi({
           ...basePayload,
           password: values.password,
         });
@@ -158,7 +158,7 @@ export default function AdminDoctorsPage() {
               onClick={async () => {
                 if (!token || !deletingDoctor) return;
                 try {
-                  await deleteDoctorApi(token, deletingDoctor.id);
+                  await deleteDoctorApi(deletingDoctor.id);
                   await loadData();
                   pushToast({ message: "Medecin supprime avec succes." });
                 } catch (err) {

@@ -16,6 +16,7 @@ import {
   createPatientApi,
   deletePatientApi,
   listPatientsApi,
+  uploadPatientFileApi,
   uiPatientToApi,
   updatePatientApi,
 } from "@/lib/api";
@@ -39,7 +40,7 @@ export default function PatientsPage() {
       setLoading(true);
       setError("");
       try {
-        const apiPatients = await listPatientsApi(token);
+        const apiPatients = await listPatientsApi();
         if (!mounted) return;
         const uiPatients = apiPatients
           .map(apiPatientToUi)
@@ -73,7 +74,10 @@ export default function PatientsPage() {
     try {
       const apiPayload = uiPatientToApi(payload, currentUser.id);
       if (editingPatient) {
-        const updated = await updatePatientApi(token, editingPatient.id, apiPayload);
+        const updated = await updatePatientApi(editingPatient.id, apiPayload);
+        if (payload.attachmentFile) {
+          await uploadPatientFileApi(updated.id, payload.attachmentFile, payload.attachmentName);
+        }
         setPatients((prev) =>
           prev.map((item) =>
             item.id === editingPatient.id
@@ -84,7 +88,10 @@ export default function PatientsPage() {
         pushToast({ message: "Patient mis a jour avec succes." });
         didSucceed = true;
       } else {
-        const created = await createPatientApi(token, apiPayload);
+        const created = await createPatientApi(apiPayload);
+        if (payload.attachmentFile) {
+          await uploadPatientFileApi(created.id, payload.attachmentFile, payload.attachmentName);
+        }
         const next = apiPatientToUi(created);
         const nextWithAttachment = { ...next, attachmentName: payload.attachmentName || "" };
         setPatients((prev) => {
@@ -156,7 +163,7 @@ export default function PatientsPage() {
               onClick={async () => {
                 if (!token || !deletingPatient) return;
                 try {
-                  await deletePatientApi(token, deletingPatient.id);
+                  await deletePatientApi(deletingPatient.id);
                   setPatients((prev) => prev.filter((item) => item.id !== deletingPatient.id));
                   pushToast({ message: "Patient supprime avec succes." });
                 } catch (err) {

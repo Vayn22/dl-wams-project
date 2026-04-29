@@ -1,27 +1,24 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { loginApi, meApi, specialtyToUiKey } from "@/lib/api";
+import { clearAuthTokens, hasAccessToken, loginApi, meApi, specialtyToUiKey } from "@/lib/api";
 
 const AuthContext = createContext(null);
-const STORAGE_KEY = "medisync_auth";
+const USER_STORAGE_KEY = "medisync_user";
 
 function readStoredSession() {
   if (typeof window === "undefined") {
-    return { token: null, user: null };
+    return { user: null };
   }
-  const raw = window.localStorage.getItem(STORAGE_KEY);
+  const raw = window.localStorage.getItem(USER_STORAGE_KEY);
   if (!raw) {
-    return { token: null, user: null };
+    return { user: null };
   }
   try {
     const parsed = JSON.parse(raw);
-    return {
-      token: parsed?.token || null,
-      user: parsed?.user || null,
-    };
+    return { user: parsed || null };
   } catch {
-    return { token: null, user: null };
+    return { user: null };
   }
 }
 
@@ -46,40 +43,40 @@ function mapUser(user) {
 export function AuthProvider({ children }) {
   const stored = readStoredSession();
   const [currentUser, setCurrentUser] = useState(stored.user);
-  const [token, setToken] = useState(stored.token);
+  const [token, setToken] = useState(hasAccessToken() ? "ready" : null);
   const [isReady, setIsReady] = useState(false);
 
-  const persistSession = useCallback((nextToken, nextUser) => {
-    if (!nextToken || !nextUser) {
-      window.localStorage.removeItem(STORAGE_KEY);
+  const persistUser = useCallback((nextUser) => {
+    if (typeof window === "undefined") return;
+    if (!nextUser) {
+      window.localStorage.removeItem(USER_STORAGE_KEY);
       return;
     }
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ token: nextToken, user: nextUser })
-    );
+    window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser));
   }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     async function hydrate() {
-      if (!token) {
+      if (!hasAccessToken()) {
         if (isMounted) setIsReady(true);
         return;
       }
       try {
-        const me = await meApi(token);
+        const me = await meApi();
         const mappedUser = mapUser(me);
         if (isMounted) {
           setCurrentUser(mappedUser);
-          persistSession(token, mappedUser);
+          setToken("ready");
+          persistUser(mappedUser);
         }
       } catch {
         if (isMounted) {
           setCurrentUser(null);
           setToken(null);
-          persistSession(null, null);
+          clearAuthTokens();
+          persistUser(null);
         }
       } finally {
         if (isMounted) setIsReady(true);
@@ -90,26 +87,28 @@ export function AuthProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [token, persistSession]);
+  }, [persistUser]);
 
   const login = useCallback(async (identifier, password) => {
     try {
-      const response = await loginApi(identifier.trim(), password);
-      const mappedUser = mapUser(response.user || {});
+      await loginApi(identifier.trim(), password);
+      const me = await meApi();
+      const mappedUser = mapUser(me || {});
       setCurrentUser(mappedUser);
-      setToken(response.access_token);
-      persistSession(response.access_token, mappedUser);
+      setToken("ready");
+      persistUser(mappedUser);
       return mappedUser;
     } catch {
       return null;
     }
-  }, [persistSession]);
+  }, [persistUser]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
     setToken(null);
-    persistSession(null, null);
-  }, [persistSession]);
+    clearAuthTokens();
+    persistUser(null);
+  }, [persistUser]);
 
   const value = useMemo(
     () => ({ currentUser, token, isReady, login, logout }),

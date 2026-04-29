@@ -1,4 +1,7 @@
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+let refreshPromise = null;
 
 const UI_SPECIALTY_BY_NAME = {
   neurologist: "neurologist",
@@ -51,19 +54,98 @@ function toJsonIfPossible(text) {
   }
 }
 
-async function apiRequest(path, options = {}) {
-  const { method = "GET", token, body, isFormData = false } = options;
-  const headers = {};
+function getStoredToken(key) {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(key);
+}
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+export function setAuthTokens({ access, refresh }) {
+  if (typeof window === "undefined") return;
+  if (access) window.localStorage.setItem(ACCESS_TOKEN_KEY, access);
+  if (refresh) window.localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+}
+
+export function clearAuthTokens() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export function hasAccessToken() {
+  return Boolean(getStoredToken(ACCESS_TOKEN_KEY));
+}
+
+function buildUrl(path) {
+  if (String(path).startsWith("http://") || String(path).startsWith("https://")) {
+    return path;
+  }
+  const normalizedPath = String(path).startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+function getErrorMessage(data, rawText, status) {
+  if (typeof data === "string" && data.trim()) return data;
+  if (data?.detail) return String(data.detail);
+  if (data?.message) return String(data.message);
+  if (Array.isArray(data) && data.length) return data.join(", ");
+  if (data && typeof data === "object") {
+    const firstEntry = Object.values(data)[0];
+    if (Array.isArray(firstEntry) && firstEntry.length) return String(firstEntry[0]);
+    if (typeof firstEntry === "string") return firstEntry;
+  }
+  if (rawText?.trim()) return rawText;
+  return `API error (${status})`;
+}
+
+async function refreshAccessToken() {
+  const refresh = getStoredToken(REFRESH_TOKEN_KEY);
+  if (!refresh) return null;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(buildUrl("/api/token/refresh/"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+      });
+
+      const raw = await response.text();
+      const data = toJsonIfPossible(raw);
+      if (!response.ok || !data?.access) {
+        clearAuthTokens();
+        throw new Error(getErrorMessage(data, raw, response.status));
+      }
+
+      setAuthTokens({ access: data.access });
+      return data.access;
+    })().finally(() => {
+      refreshPromise = null;
+    });
   }
 
+  return refreshPromise;
+}
+
+async function apiRequest(path, options = {}) {
+  const {
+    method = "GET",
+    body,
+    isFormData = false,
+    customHeaders = {},
+    skipAuth = false,
+    allowRefresh = true,
+  } = options;
+
+  const headers = { ...customHeaders };
+  const accessToken = getStoredToken(ACCESS_TOKEN_KEY);
+  if (!skipAuth && accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
   if (body && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(buildUrl(path), {
     method,
     headers,
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
@@ -72,17 +154,47 @@ async function apiRequest(path, options = {}) {
   const raw = await response.text();
   const data = toJsonIfPossible(raw);
 
+  if (response.status === 401 && !skipAuth && allowRefresh && getStoredToken(REFRESH_TOKEN_KEY)) {
+    try {
+      await refreshAccessToken();
+      return apiRequest(path, { ...options, allowRefresh: false });
+    } catch {
+      clearAuthTokens();
+      throw new Error("Session expirée. Veuillez vous reconnecter.");
+    }
+  }
+
   if (!response.ok) {
-    const message =
-      data?.detail ||
-      data?.message ||
-      (Array.isArray(data) ? data.join(", ") : null) ||
-      raw ||
-      `API error (${response.status})`;
-    throw new Error(message);
+    throw new Error(getErrorMessage(data, raw, response.status));
   }
 
   return data;
+}
+
+export function get(path, options = {}) {
+  return apiRequest(path, { ...options, method: "GET" });
+}
+
+export function post(path, body, options = {}) {
+  return apiRequest(path, {
+    ...options,
+    method: "POST",
+    body,
+    isFormData: body instanceof FormData || options.isFormData,
+  });
+}
+
+export function put(path, body, options = {}) {
+  return apiRequest(path, {
+    ...options,
+    method: "PUT",
+    body,
+    isFormData: body instanceof FormData || options.isFormData,
+  });
+}
+
+export function del(path, options = {}) {
+  return apiRequest(path, { ...options, method: "DELETE" });
 }
 
 export function specialtyToUiKey(specialtyName = "") {
@@ -200,102 +312,91 @@ export function uiAppointmentToApi(values) {
 }
 
 export async function loginApi(username, password) {
-  return apiRequest("/api/users/login/", {
-    method: "POST",
-    body: { username, password },
-  });
+  const tokenResponse = await post(
+    "/api/token/",
+    { username, password },
+    { skipAuth: true, allowRefresh: false }
+  );
+
+  if (!tokenResponse?.access || !tokenResponse?.refresh) {
+    throw new Error("Réponse de connexion invalide.");
+  }
+
+  setAuthTokens({ access: tokenResponse.access, refresh: tokenResponse.refresh });
+  return tokenResponse;
 }
 
-export async function meApi(token) {
-  return apiRequest("/api/users/me/", { token });
+export async function meApi() {
+  return get("/api/users/me/");
 }
 
-export async function listDoctorsApi(token) {
-  return apiRequest("/api/users/doctors/", { token });
+export async function listDoctorsApi() {
+  return get("/api/users/doctors/");
 }
 
-export async function createDoctorApi(token, payload) {
-  return apiRequest("/api/users/doctors/create/", { method: "POST", token, body: payload });
+export async function createDoctorApi(payload) {
+  return post("/api/users/doctors/create/", payload);
 }
 
-export async function updateDoctorApi(token, doctorId, payload) {
-  return apiRequest(`/api/users/doctors/${doctorId}/update/`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
+export async function updateDoctorApi(doctorId, payload) {
+  return put(`/api/users/doctors/${doctorId}/update/`, payload);
 }
 
-export async function deleteDoctorApi(token, doctorId) {
-  return apiRequest(`/api/users/doctors/${doctorId}/delete/`, { method: "DELETE", token });
+export async function deleteDoctorApi(doctorId) {
+  return del(`/api/users/doctors/${doctorId}/delete/`);
 }
 
-export async function listSpecialtiesApi(token) {
-  return apiRequest("/api/users/specialties/", { token });
+export async function listSpecialtiesApi() {
+  return get("/api/users/specialties/");
 }
 
-export async function listPatientsApi(token) {
-  return apiRequest("/api/patients/", { token });
+export async function listPatientsApi() {
+  return get("/api/patients/");
 }
 
-export async function createPatientApi(token, payload) {
-  return apiRequest("/api/patients/create/", { method: "POST", token, body: payload });
+export async function createPatientApi(payload) {
+  return post("/api/patients/create/", payload);
 }
 
-export async function updatePatientApi(token, patientId, payload) {
-  return apiRequest(`/api/patients/${patientId}/update/`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
+export async function updatePatientApi(patientId, payload) {
+  return put(`/api/patients/${patientId}/update/`, payload);
 }
 
-export async function deletePatientApi(token, patientId) {
-  return apiRequest(`/api/patients/${patientId}/delete/`, { method: "DELETE", token });
+export async function deletePatientApi(patientId) {
+  return del(`/api/patients/${patientId}/delete/`);
 }
 
-export async function uploadPatientFileApi(token, patientId, file, label = "") {
+export async function uploadPatientFileApi(patientId, file, label = "") {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("label", label || file?.name || "Fichier medical");
-  return apiRequest(`/api/patients/${patientId}/files/upload/`, {
-    method: "POST",
-    token,
-    body: formData,
-    isFormData: true,
-  });
+  return post(`/api/patients/${patientId}/files/upload/`, formData, { isFormData: true });
 }
 
-export async function deletePatientFileApi(token, fileId) {
-  return apiRequest(`/api/patients/files/${fileId}/delete/`, {
-    method: "DELETE",
-    token,
-  });
+export async function deletePatientFileApi(fileId) {
+  return del(`/api/patients/files/${fileId}/delete/`);
 }
 
-export async function listAppointmentsApi(token) {
-  return apiRequest("/api/patients/appointments/", { token });
+export async function listAppointmentsApi() {
+  return get("/api/patients/appointments/");
 }
 
-export async function createAppointmentApi(token, payload) {
-  return apiRequest("/api/patients/appointments/create/", {
-    method: "POST",
-    token,
-    body: payload,
-  });
+export async function createAppointmentApi(payload) {
+  return post("/api/patients/appointments/create/", payload);
 }
 
-export async function updateAppointmentApi(token, appointmentId, payload) {
-  return apiRequest(`/api/patients/appointments/${appointmentId}/update/`, {
-    method: "PUT",
-    token,
-    body: payload,
-  });
+export async function updateAppointmentApi(appointmentId, payload) {
+  return put(`/api/patients/appointments/${appointmentId}/update/`, payload);
 }
 
-export async function deleteAppointmentApi(token, appointmentId) {
-  return apiRequest(`/api/patients/appointments/${appointmentId}/delete/`, {
-    method: "DELETE",
-    token,
-  });
+export async function deleteAppointmentApi(appointmentId) {
+  return del(`/api/patients/appointments/${appointmentId}/delete/`);
+}
+
+export async function listAiModelsApi() {
+  return get("/ai/models/");
+}
+
+export async function runAiModelApi(payload) {
+  return post("/ai/run/", payload);
 }

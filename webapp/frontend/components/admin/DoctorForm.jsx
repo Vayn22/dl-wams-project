@@ -41,9 +41,11 @@ export default function DoctorForm({ open, onClose, onSave, editingDoctor }) {
 
   const submit = handleSubmit(async (values) => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    onSave(values);
-    setIsLoading(false);
+    try {
+      await onSave(values);
+    } finally {
+      setIsLoading(false);
+    }
   });
 
   return (

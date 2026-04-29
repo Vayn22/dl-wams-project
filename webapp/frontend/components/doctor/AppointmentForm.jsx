@@ -58,9 +58,11 @@ export default function AppointmentForm({
     event.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-    onSave(form);
-    setLoading(false);
+    try {
+      await onSave(form);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

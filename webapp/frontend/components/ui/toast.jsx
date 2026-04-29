@@ -15,7 +15,13 @@ export function ToastProvider({ children }) {
 
   const pushToast = useCallback((toast) => {
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { duration: 3000, type: "success", ...toast, id }]);
+    const resolvedType =
+      toast.type ||
+      (toast.variant === "destructive" ? "error" : "success");
+    setToasts((prev) => [
+      ...prev,
+      { duration: 3000, type: resolvedType, ...toast, id },
+    ]);
     setTimeout(() => removeToast(id), toast.duration || 3000);
   }, [removeToast]);
 

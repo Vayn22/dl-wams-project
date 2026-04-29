@@ -75,6 +75,13 @@ const typeStyle = {
   Contrôle: "bg-amber-100 text-amber-700",
 };
 
+const apiStatusByUi = {
+  "planifié": "scheduled",
+  "confirmé": "scheduled",
+  "annulé": "cancelled",
+  "terminé": "completed",
+};
+
 function formatLongDate(dateString) {
   return new Date(dateString).toLocaleDateString("fr-FR", {
     weekday: "short",
@@ -116,8 +123,8 @@ export default function AppointmentsPage() {
       setError("");
       try {
         const [apiPatients, apiAppointments] = await Promise.all([
-          listPatientsApi(token),
-          listAppointmentsApi(token),
+          listPatientsApi(),
+          listAppointmentsApi(),
         ]);
         const uiPatients = apiPatients.map(apiPatientToUi);
         const patientsById = Object.fromEntries(uiPatients.map((item) => [item.id, item]));
@@ -190,9 +197,9 @@ export default function AppointmentsPage() {
       const apiPayload = uiAppointmentToApi(payload);
       let saved;
       if (editingAppointment) {
-        saved = await updateAppointmentApi(token, editingAppointment.id, apiPayload);
+        saved = await updateAppointmentApi(editingAppointment.id, apiPayload);
       } else {
-        saved = await createAppointmentApi(token, apiPayload);
+        saved = await createAppointmentApi(apiPayload);
       }
       const patientMap = Object.fromEntries(myPatients.map((item) => [item.id, item]));
       const uiSaved = apiAppointmentToUi(saved, patientMap);
@@ -337,9 +344,29 @@ export default function AppointmentsPage() {
                               {statusList.map((status) => (
                                 <DropdownMenuItem
                                   key={status}
-                                  onClick={() =>
-                                    setAppointments((prev) => prev.map((a) => (a.id === item.id ? { ...a, status } : a)))
-                                  }
+                                  onClick={async () => {
+                                    try {
+                                      const updated = await updateAppointmentApi(item.id, {
+                                        status: apiStatusByUi[status] || "scheduled",
+                                      });
+                                      const patientMap = Object.fromEntries(
+                                        myPatients.map((entry) => [entry.id, entry])
+                                      );
+                                      const uiUpdated = apiAppointmentToUi(updated, patientMap);
+                                      setAppointments((prev) =>
+                                        prev.map((a) =>
+                                          a.id === item.id ? { ...uiUpdated, status } : a
+                                        )
+                                      );
+                                    } catch (statusError) {
+                                      pushToast({
+                                        message:
+                                          statusError.message ||
+                                          "Mise à jour du statut impossible.",
+                                        type: "error",
+                                      });
+                                    }
+                                  }}
                                 >
                                   Marquer comme {status}
                                 </DropdownMenuItem>
@@ -480,7 +507,7 @@ export default function AppointmentsPage() {
               onClick={async () => {
                 if (!token || !deletingAppointment) return;
                 try {
-                  await deleteAppointmentApi(token, deletingAppointment.id);
+                  await deleteAppointmentApi(deletingAppointment.id);
                   setAppointments((prev) => prev.filter((a) => a.id !== deletingAppointment.id));
                 } catch (err) {
                   pushToast({ message: err.message || "Suppression impossible.", variant: "destructive" });

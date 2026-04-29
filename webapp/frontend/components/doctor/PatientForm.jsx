@@ -25,21 +25,25 @@ export default function PatientForm({ open, onClose, onSave, editingPatient }) {
   const initialData = editingPatient || defaultValues;
   const [isLoading, setIsLoading] = useState(false);
   const [attachmentName, setAttachmentName] = useState(initialData.attachmentName || "");
+  const [attachmentFile, setAttachmentFile] = useState(null);
   const { register, setValue, reset, handleSubmit, formState: { errors } } = useForm({ defaultValues });
 
   useEffect(() => {
     const nextValues = editingPatient || defaultValues;
     reset(nextValues);
     setAttachmentName(nextValues.attachmentName || "");
+    setAttachmentFile(null);
   }, [editingPatient, open, reset]);
 
   if (!open) return null;
 
   const submit = handleSubmit(async (values) => {
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    onSave({ ...values, attachmentName });
-    setIsLoading(false);
+    try {
+      await onSave({ ...values, attachmentName, attachmentFile });
+    } finally {
+      setIsLoading(false);
+    }
   });
 
   return (
@@ -109,6 +113,7 @@ export default function PatientForm({ open, onClose, onSave, editingPatient }) {
                 const file = event.target.files?.[0];
                 if (!file) return;
                 setAttachmentName(file.name);
+                setAttachmentFile(file);
                 setValue("attachmentName", file.name);
               }}
             />
@@ -117,7 +122,16 @@ export default function PatientForm({ open, onClose, onSave, editingPatient }) {
           {attachmentName ? (
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700">
               {attachmentName}
-              <button type="button" onClick={() => setAttachmentName("")}><X className="h-3 w-3" /></button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachmentName("");
+                  setAttachmentFile(null);
+                  setValue("attachmentName", "");
+                }}
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           ) : null}
 

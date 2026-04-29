@@ -21,7 +21,7 @@ export function PatientDataProvider({ children }) {
     setLoading(true);
     setError("");
     try {
-      const apiPatients = await listPatientsApi(token);
+      const apiPatients = await listPatientsApi();
       setPatientsData(apiPatients.map(apiPatientToUi));
     } catch (err) {
       setError(err.message || "Impossible de charger les patients.");
@@ -42,7 +42,7 @@ export function PatientDataProvider({ children }) {
 
       await Promise.all(
         files.map((file) =>
-          uploadPatientFileApi(token, patientId, file, file.name)
+          uploadPatientFileApi(patientId, file, file.name)
         )
       );
       await refreshPatients();
@@ -53,7 +53,7 @@ export function PatientDataProvider({ children }) {
   const deleteMedicalFile = useCallback(
     async (fileId) => {
       if (!token || !fileId) return;
-      await deletePatientFileApi(token, fileId);
+      await deletePatientFileApi(fileId);
       await refreshPatients();
     },
     [token, refreshPatients]

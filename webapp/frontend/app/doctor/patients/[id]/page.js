@@ -24,7 +24,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/context/AuthContext";
 import { usePatientData } from "@/context/PatientDataContext";
-import { apiAppointmentToUi, listAppointmentsApi } from "@/lib/api";
+import { apiAppointmentToUi, deletePatientApi, listAppointmentsApi } from "@/lib/api";
 import { calculateAge, getInitials } from "@/lib/medisync";
 
 export default function PatientDetailPage() {
@@ -56,7 +56,7 @@ export default function PatientDetailPage() {
     async function loadRelatedData() {
       if (!token) return;
       try {
-        const apiAppointments = await listAppointmentsApi(token);
+        const apiAppointments = await listAppointmentsApi();
         const patientsById = Object.fromEntries(getPatientsData().map((item) => [item.id, item]));
         const appointmentsData = apiAppointments.map((item) => apiAppointmentToUi(item, patientsById));
         if (!mounted) return;
@@ -119,7 +119,22 @@ export default function PatientDetailPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => router.push("/doctor/patients")}>Supprimer</AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        await deletePatientApi(patient.id);
+                        pushToast({ message: "Patient supprimé avec succès." });
+                        router.push("/doctor/patients");
+                      } catch (deleteError) {
+                        pushToast({
+                          message: deleteError.message || "Suppression impossible.",
+                          type: "error",
+                        });
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
