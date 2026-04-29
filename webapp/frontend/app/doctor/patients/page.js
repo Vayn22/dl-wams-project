@@ -151,7 +151,7 @@ export default function PatientsPage() {
             <AlertDialogDescription>Cette action est irreversible.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Annulerr</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (!token || !deletingPatient) return;
