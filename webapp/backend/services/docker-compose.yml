@@ -113,6 +113,24 @@ services:
     networks:
       - wams_net
 
+  # ===================== AI SERVICE =====================
+  ai:
+    build: ./ai_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: ai-service
+      SERVICE_ID: ai-service-1
+      SERVICE_HOST: ai
+      SERVICE_PORT: 8003
+      HEALTH_URL: http://ai:8003/api/health/
+    ports:
+      - "8003:8003"
+    depends_on:
+      consul:
+        condition: service_started
+    networks:
+      - wams_net
+
 volumes:
   auth_db_data:
   patient_db_data:

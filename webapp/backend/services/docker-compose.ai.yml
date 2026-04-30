@@ -1,0 +1,49 @@
+# ============================================================
+#  AI Service – Run on ANY machine (PC2, PC3 …)
+#
+#  Before starting, set:
+#    Windows PowerShell:
+#      $env:PC1_IP="192.168.1.10"        # LAN IP of PC1 (Consul server)
+#      $env:THIS_IP="192.168.1.x"        # LAN IP of THIS machine
+#
+#    Linux/macOS:
+#      export PC1_IP=192.168.1.10
+#      export THIS_IP=192.168.1.x
+# ============================================================
+services:
+  consul-client:
+    image: hashicorp/consul:1.21.3
+    command:
+      - "agent"
+      - "-client=0.0.0.0"
+      - "-ui"
+      - "-advertise=${THIS_IP:-127.0.0.1}"
+      - "-bind=0.0.0.0"
+      - "-retry-join=${PC1_IP:-127.0.0.1}"
+    ports:
+      - "8500:8500"      # Local Consul UI (optional)
+      - "8301:8301"      # Serf LAN
+      - "8301:8301/udp"
+    networks:
+      - wams_net
+
+  ai:
+    build: ./ai_service
+    environment:
+      CONSUL_URL: http://consul-client:8500
+      SERVICE_NAME: ai-service
+      SERVICE_ID: ai-service-1
+      SERVICE_HOST: ${THIS_IP:-127.0.0.1}
+      SERVICE_PORT: 8003
+      HEALTH_URL: http://${THIS_IP:-127.0.0.1}:8003/api/health/
+    ports:
+      - "8003:8003"
+    depends_on:
+      consul-client:
+        condition: service_started
+    networks:
+      - wams_net
+
+networks:
+  wams_net:
+    driver: bridge

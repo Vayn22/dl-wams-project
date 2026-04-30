@@ -8,10 +8,11 @@ Services tested
 ───────────────
   • Auth Service    → http://localhost:8001
   • Patient Service → http://localhost:8002
+  • AI Service      → http://localhost:8003
 
 What it does
 ────────────
-  1.  Checks both health endpoints (no auth needed).
+  1.  Checks health endpoints (no auth needed).
   2.  Creates an admin user via the open /dev-create-user/ endpoint.
   3.  Obtains a JWT pair (login) and a refreshed access token.
   4.  Calls GET /api/users/me/ to verify the token payload.
@@ -21,12 +22,14 @@ What it does
   8.  Uploads a dummy medical file, then deletes it.
   9.  Creates an appointment, lists/gets/updates/deletes it.
   10. Deletes the patient (cascade) and verifies 404 on re-fetch.
+  11. Tests AI segmentation (JWT required, returns base64 mask).
+  12. Checks that protected routes reject anonymous requests (all services).
 
 Usage
 ─────
-  python test_all.py                         # defaults: localhost:8001, localhost:8002
-  python test_all.py --auth 8001 --patient 8002
-  python test_all.py --auth-host 192.168.1.5 --patient-host 192.168.1.5
+  python test_all.py
+  python test_all.py --auth 8001 --patient 8002 --ai 8003
+  python test_all.py --auth-host 192.168.1.5 --patient-host 192.168.1.5 --ai-host 192.168.1.5
 
 Requirements
 ────────────
@@ -35,11 +38,14 @@ Requirements
 """
 
 import argparse
+import base64
 import io
 import json
+import struct
 import sys
 import textwrap
 import time
+import zlib
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
@@ -74,6 +80,38 @@ STATE: dict[str, Any] = {
 }
 
 RESULTS: list[dict] = []   # {name, passed, detail}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pure-Python 1x1 red PNG generator (no Pillow required)
+# ─────────────────────────────────────────────────────────────────────────────
+def _make_test_png_bytes() -> bytes:
+    """
+    Return a valid 1x1 red PNG as raw bytes, using only stdlib (struct + zlib).
+    """
+    # PNG signature
+    signature = b"\x89PNG\r\n\x1a\n"
+
+    # IHDR chunk: width=1, height=1, bit depth=8, colour type=2 (RGB)
+    ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)
+    ihdr_crc = zlib.crc32(b"IHDR" + ihdr_data) & 0xFFFFFFFF
+    ihdr_chunk = (
+        struct.pack(">I", len(ihdr_data)) + b"IHDR" + ihdr_data + struct.pack(">I", ihdr_crc)
+    )
+
+    # Raw image data: filter byte 0 + RGB red pixel
+    raw = b"\x00\xff\x00\x00"
+    compressed = zlib.compress(raw)
+    idat_crc = zlib.crc32(b"IDAT" + compressed) & 0xFFFFFFFF
+    idat_chunk = (
+        struct.pack(">I", len(compressed)) + b"IDAT" + compressed + struct.pack(">I", idat_crc)
+    )
+
+    # IEND chunk
+    iend_crc = zlib.crc32(b"IEND") & 0xFFFFFFFF
+    iend_chunk = b"\x00\x00\x00\x00IEND" + struct.pack(">I", iend_crc)
+
+    return signature + ihdr_chunk + idat_chunk + iend_chunk
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -158,7 +196,7 @@ def _expect(
 # Test groups
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_health(AUTH: str, PATIENT: str) -> None:
+def test_health(AUTH: str, PATIENT: str, AI: str) -> None:
     _section("1 · Health checks")
 
     r = requests.get(f"{AUTH}/api/users/health/", timeout=10)
@@ -171,6 +209,13 @@ def test_health(AUTH: str, PATIENT: str) -> None:
     r = requests.get(f"{PATIENT}/api/health/", timeout=10)
     _expect(
         "Patient service health",
+        r, 200,
+        extra_check=lambda b: (b.get("status") == "ok", f"status != ok: {b}")
+    )
+
+    r = requests.get(f"{AI}/api/health/", timeout=10)
+    _expect(
+        "AI service health",
         r, 200,
         extra_check=lambda b: (b.get("status") == "ok", f"status != ok: {b}")
     )
@@ -368,7 +413,6 @@ def test_patients(PATIENT: str) -> None:
         ),
     )
     if body and STATE["patient_id"] is None:
-        # 200 duplicate path: body = {"detail": "...", "patient": {...}}
         nested = body.get("patient", {})
         STATE["patient_id"] = nested.get("id")
 
@@ -463,7 +507,6 @@ def test_appointments(PATIENT: str) -> None:
 
     headers = _auth_headers()
 
-    # Use a future datetime (1 day from now) so it won't auto-expire
     future_dt = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     appointment_payload = {
@@ -556,13 +599,39 @@ def test_patient_delete(PATIENT: str) -> None:
     )
     _expect(f"DELETE /api/patients/{pk}/delete/ → 204", r, 204)
 
-    # confirm 404
     r = requests.get(f"{PATIENT}/api/patients/{pk}/", headers=headers, timeout=10)
     _expect(f"GET /api/patients/{pk}/ after delete → 404", r, 404)
 
 
-def test_auth_required(AUTH: str, PATIENT: str) -> None:
-    _section("11 · Auth enforcement — protected routes reject anonymous")
+def test_ai(AI: str) -> None:
+    _section("11 · AI Segmentation")
+
+    headers = _auth_headers()
+
+    # Build a valid 1x1 red PNG without any external library
+    png_bytes = _make_test_png_bytes()
+    buf = io.BytesIO(png_bytes)
+
+    r = requests.post(
+        f"{AI}/api/segment/",
+        files={"image": ("test.png", buf, "image/png")},
+        headers=headers,
+        timeout=30,
+    )
+    _expect(
+        "POST /api/segment/ → 200 (JWT with ai.use_segmentation)",
+        r, 200,
+        extra_check=lambda b: (
+            "mask" in b and isinstance(b["mask"], str),
+            "Expected base64-encoded 'mask' in response"
+        ),
+    )
+
+    # Without token → 401 is tested later in test_auth_required
+
+
+def test_auth_required(AUTH: str, PATIENT: str, AI: str) -> None:
+    _section("12 · Auth enforcement — protected routes reject anonymous")
 
     pairs = [
         ("GET", f"{AUTH}/api/users/me/"),
@@ -570,6 +639,7 @@ def test_auth_required(AUTH: str, PATIENT: str) -> None:
         ("GET", f"{AUTH}/api/users/doctors/"),
         ("GET", f"{PATIENT}/api/patients/"),
         ("GET", f"{PATIENT}/api/appointments/"),
+        ("POST", f"{AI}/api/segment/"),
     ]
 
     for method, url in pairs:
@@ -615,8 +685,10 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--auth-host",     default="localhost", help="Auth service hostname")
     p.add_argument("--patient-host",  default="localhost", help="Patient service hostname")
+    p.add_argument("--ai-host",       default="localhost", help="AI service hostname")
     p.add_argument("--auth",          default=8001, type=int, help="Auth service port (default: 8001)")
     p.add_argument("--patient",       default=8002, type=int, help="Patient service port (default: 8002)")
+    p.add_argument("--ai",            default=8003, type=int, help="AI service port (default: 8003)")
     return p.parse_args()
 
 
@@ -624,15 +696,17 @@ def main() -> None:
     args = parse_args()
     AUTH    = f"http://{args.auth_host}:{args.auth}"
     PATIENT = f"http://{args.patient_host}:{args.patient}"
+    AI      = f"http://{args.ai_host}:{args.ai}"
 
     print(f"\n{BOLD}{'═'*60}{RESET}")
     print(f"{BOLD}  dl-wams-project · Full API Test Suite{RESET}")
     print(f"{BOLD}{'═'*60}{RESET}")
     print(f"  Auth service    → {CYAN}{AUTH}{RESET}")
     print(f"  Patient service → {CYAN}{PATIENT}{RESET}")
+    print(f"  AI service      → {CYAN}{AI}{RESET}")
 
     try:
-        test_health(AUTH, PATIENT)
+        test_health(AUTH, PATIENT, AI)
         test_dev_create_user(AUTH)
         test_token(AUTH)
 
@@ -647,7 +721,8 @@ def main() -> None:
         test_files(PATIENT)
         test_appointments(PATIENT)
         test_patient_delete(PATIENT)
-        test_auth_required(AUTH, PATIENT)
+        test_ai(AI)
+        test_auth_required(AUTH, PATIENT, AI)
 
     except requests.exceptions.ConnectionError as exc:
         print(f"\n{RED}{BOLD}Connection error — is the backend running?{RESET}")

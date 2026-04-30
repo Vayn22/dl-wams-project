@@ -19,6 +19,13 @@ PATIENT_SERVICE_PERMISSIONS = {
     "patients.download_medicalfile",
 }
 
+# -----------------------------------------------------------------
+# ADD AI SERVICE PERMISSIONS
+# -----------------------------------------------------------------
+AI_SERVICE_PERMISSIONS = {
+    "ai.use_segmentation",
+    # Add more AI‑specific permissions here in the future
+}
 
 def get_doctor_profile(user):
     try:
@@ -33,8 +40,10 @@ def build_permissions(user):
 
     if "Doctor" in groups:
         permissions.update(PATIENT_SERVICE_PERMISSIONS)
+        permissions.update(AI_SERVICE_PERMISSIONS)   # <-- ADDED
 
     if "Admin" in groups or user.is_superuser:
         permissions.update(PATIENT_SERVICE_PERMISSIONS)
+        permissions.update(AI_SERVICE_PERMISSIONS)   # <-- ADDED
 
     return sorted(permissions)
