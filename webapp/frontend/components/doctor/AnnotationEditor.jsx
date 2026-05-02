@@ -17,20 +17,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
+import { useSegmentation } from "@/hooks/useSegmentation";
+import { drawMaskOnCanvas } from "@/utils/renderMask";
 
 function drawArrow(ctx, x1, y1, x2, y2, color, size, dashed) {
   const angle = Math.atan2(y2 - y1, x2 - x1);
@@ -138,13 +126,12 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
   const strokeStateHistory = useRef([]);
   const strokes = useRef([]);
   const baseSnapshot = useRef(null);
-  const selectedObject = useRef(null);
+  const originalSnapshotRef = useRef(null);
   const selectedStrokeRef = useRef(null);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const rafId = useRef(null);
-  const imgDrawRect = useRef({ x: 0, y: 0, w: 0, h: 0 });
-  const imageNaturalRef = useRef({ w: 0, h: 0 });
+  const originalImageRef = useRef(null);
   const textInputPos = useRef({ x: 0, y: 0 });
   const pointerPosRef = useRef({ x: 0, y: 0 });
   const dprRef = useRef(1);
@@ -164,6 +151,11 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
   const [hoverHit, setHoverHit] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [isDraggingUi, setIsDraggingUi] = useState(false);
+  const [segmentationImageFile, setSegmentationImageFile] = useState(null);
+  const [maskApplied, setMaskApplied] = useState(false);
+
+  const { runSegmentation, maskBase64, isLoading, error, reset } =
+    useSegmentation(segmentationImageFile);
 
   const colorOptions = [
     { value: "#ef4444", label: "Rouge critique" },
@@ -259,49 +251,17 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
     ctx.lineCap = "round";
   }, []);
 
-  const drawAiAnnotations = useCallback((ctx) => {
-    const rect = imgDrawRect.current;
-    if (!rect.w || !rect.h) return;
-
-    const cx1 = rect.x + rect.w * 0.58;
-    const cy1 = rect.y + rect.h * 0.52;
-    const rx1 = rect.w * 0.12;
-    const ry1 = rect.h * 0.09;
-    ctx.beginPath();
-    ctx.ellipse(cx1, cy1, rx1, ry1, -0.2, 0, Math.PI * 2);
-    ctx.strokeStyle = "#ef4444";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = "rgba(239, 68, 68, 0.12)";
-    ctx.fill();
-    const label1 = "Zone suspecte — IA (87%)";
-    ctx.font = "bold 12px Inter, sans-serif";
-    const tw1 = ctx.measureText(label1).width;
-    ctx.fillStyle = "rgba(239,68,68,0.85)";
-    roundRect(ctx, cx1 - tw1 / 2 - 8, cy1 - ry1 - 26, tw1 + 16, 20, 4);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(label1, cx1 - tw1 / 2, cy1 - ry1 - 12);
-
-    const cx2 = rect.x + rect.w * 0.35;
-    const cy2 = rect.y + rect.h * 0.38;
-    const rx2 = rect.w * 0.07;
-    const ry2 = rect.h * 0.055;
-    ctx.beginPath();
-    ctx.ellipse(cx2, cy2, rx2, ry2, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = "#f59e0b";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = "rgba(245,158,11,0.10)";
-    ctx.fill();
-    const label2 = "Asymétrie — IA (62%)";
-    ctx.font = "bold 12px Inter, sans-serif";
-    const tw2 = ctx.measureText(label2).width;
-    ctx.fillStyle = "rgba(245,158,11,0.9)";
-    roundRect(ctx, cx2 - tw2 / 2 - 8, cy2 - ry2 - 26, tw2 + 16, 20, 4);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(label2, cx2 - tw2 / 2, cy2 - ry2 - 12);
+  const createCanvasImageFile = useCallback(async () => {
+    if (!baseCanvasRef.current) return null;
+    return new Promise((resolve) => {
+      baseCanvasRef.current.toBlob((blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        resolve(new File([blob], "image.png", { type: "image/png" }));
+      }, "image/png");
+    });
   }, []);
 
   const drawStroke = useCallback((ctx, stroke, options = {}) => {
@@ -530,18 +490,23 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
       const h = imageElement.naturalHeight * scale;
       const x = (cw - w) / 2;
       const y = (ch - h) / 2;
-      imgDrawRect.current = { x, y, w, h };
-      imageNaturalRef.current = { w: imageElement.naturalWidth, h: imageElement.naturalHeight };
+      originalImageRef.current = imageElement;
       baseCtx.drawImage(imageElement, x, y, w, h);
-      drawAiAnnotations(baseCtx);
 
       baseSnapshot.current = baseCtx.getImageData(0, 0, baseCanvas.width, baseCanvas.height);
+      originalSnapshotRef.current = baseCtx.getImageData(
+        0,
+        0,
+        baseCanvas.width,
+        baseCanvas.height
+      );
       strokes.current = [];
       strokeHistory.current = [];
       strokeStateHistory.current = [];
       redoStack.current = [];
       updateHistoryFlags();
       clearPreview();
+      setMaskApplied(false);
     };
 
     imageElement = new Image();
@@ -555,7 +520,7 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
     return () => {
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, [imageUrl, applyContextDefaults, drawAiAnnotations, clearPreview, updateHistoryFlags]);
+  }, [imageUrl, applyContextDefaults, clearPreview, updateHistoryFlags]);
 
   useEffect(() => {
     const previewCanvas = previewCanvasRef.current;
@@ -579,7 +544,6 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
 
       if (activeTool === "eraser") {
         isDrawing.current = true;
-        selectedObject.current = null;
         return;
       }
 
@@ -598,7 +562,6 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
         isDraggingRef.current = true;
         setIsDraggingUi(true);
         isDrawing.current = true;
-        selectedObject.current = hit;
         switch (hit.tool) {
           case "ellipse":
             dragOffsetRef.current = { x: pos.x - hit.cx, y: pos.y - hit.cy };
@@ -918,6 +881,66 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
     };
   }, []);
 
+  useEffect(() => {
+    reset();
+    setSegmentationImageFile(null);
+    setMaskApplied(false);
+  }, [imageUrl, reset]);
+
+  useEffect(() => {
+    if (!maskBase64 || !baseCanvasRef.current || !originalImageRef.current) return;
+    let cancelled = false;
+
+    async function applyMask() {
+      try {
+        await drawMaskOnCanvas(
+          baseCanvasRef.current,
+          originalImageRef.current,
+          maskBase64,
+          "rgba(255, 0, 0, 0.4)"
+        );
+        if (cancelled) return;
+        baseSnapshot.current = ctxBase.current.getImageData(
+          0,
+          0,
+          baseCanvasRef.current.width,
+          baseCanvasRef.current.height
+        );
+        strokes.current.forEach((stroke) => drawStroke(ctxBase.current, stroke));
+        setMaskApplied(true);
+      } catch {
+        // handled in segmentation hook state
+      }
+    }
+
+    applyMask();
+    return () => {
+      cancelled = true;
+    };
+  }, [drawStroke, maskBase64]);
+
+  const handleRunSegmentation = useCallback(async () => {
+    const imageToSegment = await createCanvasImageFile();
+    if (!imageToSegment) return;
+    setSegmentationImageFile(imageToSegment);
+    await runSegmentation(imageToSegment);
+  }, [createCanvasImageFile, runSegmentation]);
+
+  const handleResetMask = useCallback(() => {
+    reset();
+    setMaskApplied(false);
+    if (ctxBase.current && originalSnapshotRef.current) {
+      ctxBase.current.putImageData(originalSnapshotRef.current, 0, 0);
+      baseSnapshot.current = ctxBase.current.getImageData(
+        0,
+        0,
+        baseCanvasRef.current.width,
+        baseCanvasRef.current.height
+      );
+    }
+    redrawFromStrokes();
+  }, [redrawFromStrokes, reset]);
+
   const handleConfirmText = () => {
     if (!textModalValue.trim() || !ctxBase.current) return;
     const textStroke = {
@@ -943,10 +966,18 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
     setIsSaving(true);
     await new Promise((resolve) => setTimeout(resolve, 800));
     const dataUrl = baseCanvasRef.current.toDataURL("image/png");
-    onSave(dataUrl, selectedPatientId);
+    let didSave = false;
+    try {
+      const result = await onSave(dataUrl, selectedPatientId);
+      didSave = result !== false;
+    } catch {
+      didSave = false;
+    }
     setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2000);
+    if (didSave) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    }
   };
 
   const handleClearAnnotations = () => {
@@ -955,8 +986,14 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
       setTimeout(() => setConfirmClear(false), 2000);
       return;
     }
-    if (ctxBase.current && baseSnapshot.current) {
-      ctxBase.current.putImageData(baseSnapshot.current, 0, 0);
+    if (ctxBase.current && originalSnapshotRef.current) {
+      ctxBase.current.putImageData(originalSnapshotRef.current, 0, 0);
+      baseSnapshot.current = ctxBase.current.getImageData(
+        0,
+        0,
+        baseCanvasRef.current.width,
+        baseCanvasRef.current.height
+      );
     }
     strokes.current = [];
     strokeHistory.current = [];
@@ -965,12 +1002,14 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
     setConfirmClear(false);
     updateHistoryFlags();
     clearPreview();
+    reset();
+    setMaskApplied(false);
   };
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-row">
-        <div ref={containerRef} className="relative min-h-[500px] flex-1 bg-[#0d1117]">
+      <div className="flex flex-col items-stretch 2xl:flex-row">
+        <div ref={containerRef} className="relative h-full min-h-[400px] flex-1 bg-[#0d1117] md:min-h-[500px]">
           <canvas ref={baseCanvasRef} className="absolute inset-0" />
           <canvas
             ref={previewCanvasRef}
@@ -986,17 +1025,17 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
           </div>
         </div>
 
-        <aside className="flex w-[220px] flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-[#f8fafc] p-3">
+        <aside className="flex w-full flex-col gap-4 overflow-y-auto border-t border-slate-200 bg-[#f8fafc] p-4 2xl:w-[300px] 2xl:min-w-[300px] 2xl:border-l 2xl:border-t-0">
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">OUTILS</p>
-            <div className="space-y-1">
+            <div className="space-y-3">
               {toolOptions.map((tool) => {
                 const Icon = tool.icon;
                 const isActive = activeTool === tool.key;
                 return (
                   <button
                     key={tool.key}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-150 ${
+                    className={`flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-150 ${
                       isActive
                         ? "bg-[#1E3A5F] text-white"
                         : "text-slate-600 hover:bg-slate-100"
@@ -1007,7 +1046,7 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
                     <Icon className="h-4 w-4" />
                     <span>{tool.label}</span>
                     {!isActive ? (
-                      <span className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                      <span className="ml-auto mr-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
                         {tool.shortcut}
                       </span>
                     ) : null}
@@ -1022,15 +1061,15 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
             ) : null}
           </div>
 
-          <div>
+          <div className="mt-4">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">COULEUR</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-3">
               {colorOptions.map((color) => (
                 <button
                   key={color.value}
                   title={color.label}
                   onClick={() => setActiveColor(color.value)}
-                  className={`h-7 w-7 rounded-full transition-transform hover:scale-110 ${
+                  className={`h-8 w-8 rounded-full transition-transform hover:scale-110 ${
                     activeColor === color.value ? "ring-2 ring-[#1E3A5F] ring-offset-2 scale-110" : ""
                   }`}
                   style={{ backgroundColor: color.value }}
@@ -1041,7 +1080,7 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
 
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">ÉPAISSEUR</p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 py-3">
               <input
                 type="range"
                 min={1}
@@ -1060,6 +1099,36 @@ export default function AnnotationEditor({ imageUrl, patientList, onSave }) {
               />
             </div>
           </div>
+
+          {imageUrl ? (
+            <div className="mt-4">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                IA
+              </p>
+              <div className="space-y-1.5">
+                <button
+                  onClick={handleRunSegmentation}
+                  disabled={isLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-sm text-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Analyser avec l'IA
+                </button>
+                {isLoading ? (
+                  <p className="text-xs text-slate-500">Analyse en cours...</p>
+                ) : null}
+                {error ? <p className="text-xs text-red-500">{error}</p> : null}
+                {maskApplied ? (
+                  <button
+                    onClick={handleResetMask}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+                  >
+                    Réinitialiser le masque
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div className="my-1 border-t border-slate-200" />
 
