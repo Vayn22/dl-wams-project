@@ -83,10 +83,18 @@ export default function AdminDoctorsPage() {
     if (!token) return;
     try {
       const specialtyId = specialtyIdByUiKey(specialties, values.specialty);
+      const emailLocalPart = String(values.email || "").split("@")[0].trim();
+      const fallbackUsername = `${values.firstName}.${values.lastName}`
+        .toLowerCase()
+        .replace(/\s+/g, ".")
+        .replace(/[^a-z0-9@.+_-]/g, "");
+      const resolvedUsername = emailLocalPart || fallbackUsername || "doctor";
       const basePayload = {
-        username: `${values.firstName} ${values.lastName}`.trim(),
+        username: editingDoctor?.username || resolvedUsername,
+        first_name: values.firstName,
+        last_name: values.lastName,
         email: values.email,
-        specialty: specialtyId,
+        specialty_id: specialtyId ?? null,
       };
 
       if (editingDoctor) {

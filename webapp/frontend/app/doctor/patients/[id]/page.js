@@ -24,7 +24,13 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/context/AuthContext";
 import { usePatientData } from "@/context/PatientDataContext";
-import { apiAppointmentToUi, deletePatientApi, listAppointmentsApi } from "@/lib/api";
+import {
+  apiAppointmentToUi,
+  apiPatientToUi,
+  deletePatientApi,
+  getPatientApi,
+  listAppointmentsApi,
+} from "@/lib/api";
 import { calculateAge, getInitials } from "@/lib/medisync";
 
 export default function PatientDetailPage() {
@@ -36,7 +42,12 @@ export default function PatientDetailPage() {
   const { token, currentUser } = useAuth();
   const { getPatientsData, uploadMedicalFiles, deleteMedicalFile, loading, error } = usePatientData();
   const [appointments, setAppointments] = useState([]);
-  const patient = useMemo(() => getPatientsData().find((item) => item.id === params.id), [params.id, getPatientsData]);
+  const [fetchedPatient, setFetchedPatient] = useState(null);
+  const patientId = String(params?.id || "");
+  const patient = useMemo(() => {
+    const cached = getPatientsData().find((item) => String(item.id) === patientId);
+    return cached || fetchedPatient;
+  }, [patientId, getPatientsData, fetchedPatient]);
   const doctor = useMemo(() => {
     if (!patient || !currentUser) return null;
     if (String(currentUser.id) !== String(patient.assignedDoctorId)) return null;
@@ -53,6 +64,18 @@ export default function PatientDetailPage() {
   useEffect(() => {
     let mounted = true;
 
+    async function loadPatientById() {
+      if (!token || !patientId) return;
+      try {
+        const apiPatient = await getPatientApi(patientId);
+        if (!mounted) return;
+        setFetchedPatient(apiPatientToUi(apiPatient));
+      } catch {
+        if (!mounted) return;
+        setFetchedPatient(null);
+      }
+    }
+
     async function loadRelatedData() {
       if (!token) return;
       try {
@@ -67,11 +90,12 @@ export default function PatientDetailPage() {
       }
     }
 
+    loadPatientById();
     loadRelatedData();
     return () => {
       mounted = false;
     };
-  }, [token, getPatientsData]);
+  }, [token, patientId, getPatientsData]);
 
   if (!patient) {
     if (loading) {

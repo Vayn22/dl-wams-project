@@ -1,0 +1,17 @@
+# Core Django + DRF + JWT (same pattern as auth/patient services)
+Django==6.0.4
+djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
+django-cors-headers==4.9.0
+PyJWT==2.12.1
+requests==2.33.1
+sqlparse==0.5.5
+
+# Inference dependencies (ONNX runtime + image processing)
+onnxruntime>=1.15
+opencv-python-headless>=4.8
+Pillow>=10.0
+numpy>=1.24
+
+# Timezone data (needed on Windows / slim Docker images)
+tzdata==2026.2

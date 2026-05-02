@@ -1,0 +1,46 @@
+# ============================================================
+#  WAMS – Unified requirements
+#
+#  This file covers both auth_service and patient_service.
+#  Use it if you want to install everything in one go,
+#  for example in a monorepo virtual environment or for
+#  running services locally without Docker.
+#
+#  Install:
+#    pip install -r requirements.txt
+#
+#  Each service also has its own requirements.txt under:
+#    backend/services/auth_service/requirements.txt
+#    backend/services/patient_service/requirements.txt
+#  Those are used by Docker and are identical to this file.
+#
+#  run.py uses only Python stdlib — no pip packages needed.
+# ============================================================
+
+# Django core
+Django==6.0.4
+asgiref==3.11.1
+sqlparse==0.5.5
+
+# Django REST framework
+djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
+
+# CORS
+django-cors-headers==4.9.0
+
+# JWT
+PyJWT==2.12.1
+
+# PostgreSQL driver
+psycopg[binary]>=3.2,<4
+
+# HTTP client (used by register_consul.py and test scripts)
+requests==2.33.1
+certifi==2026.4.22
+charset-normalizer==3.4.7
+idna==3.13
+urllib3==2.6.3
+
+# Timezone data (needed on Windows / slim Docker images)
+tzdata==2026.2

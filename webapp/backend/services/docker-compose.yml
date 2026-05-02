@@ -1,0 +1,143 @@
+services:
+  consul:
+    image: hashicorp/consul:1.21.3
+    command:
+      - "agent"
+      - "-server"
+      - "-bootstrap-expect=1"
+      - "-client=0.0.0.0"
+      - "-ui"
+      - "-bind=0.0.0.0"
+    ports:
+      - "8500:8500"    # HTTP UI + API
+      - "8600:8600/udp"  # DNS
+      - "8300:8300"    # Server RPC (needed for multi-machine join)
+      - "8301:8301"    # Serf LAN
+      - "8301:8301/udp"
+    networks:
+      - wams_net
+
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --api.insecure=true
+      - --providers.consulcatalog=true
+      - --providers.consulcatalog.endpoint.address=consul:8500
+      - --providers.consulcatalog.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "8080:80"
+      - "8081:8080"
+    depends_on:
+      - consul
+    networks:
+      - wams_net
+
+  auth_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wams_net
+
+  patient_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_password
+    volumes:
+      - patient_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patient_user -d patient_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wams_net
+
+  auth:
+    build: ./auth_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: auth-service
+      SERVICE_ID: auth-service-1
+      SERVICE_HOST: auth
+      SERVICE_PORT: 8001
+      HEALTH_URL: http://auth:8001/api/users/health/
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+      POSTGRES_HOST: auth_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "8001:8001"
+    depends_on:
+      consul:
+        condition: service_started
+      auth_db:
+        condition: service_healthy
+    networks:
+      - wams_net
+
+  patient:
+    build: ./patient_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: patient-service
+      SERVICE_ID: patient-service-1
+      SERVICE_HOST: patient
+      SERVICE_PORT: 8002
+      HEALTH_URL: http://patient:8002/api/health/
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_password
+      POSTGRES_HOST: patient_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "8002:8002"
+    volumes:
+      - patient_media_data:/app/media
+    depends_on:
+      consul:
+        condition: service_started
+      patient_db:
+        condition: service_healthy
+    networks:
+      - wams_net
+
+  # ===================== AI SERVICE =====================
+  ai:
+    build: ./ai_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: ai-service
+      SERVICE_ID: ai-service-1
+      SERVICE_HOST: ai
+      SERVICE_PORT: 8003
+      HEALTH_URL: http://ai:8003/api/health/
+    ports:
+      - "8003:8003"
+    depends_on:
+      consul:
+        condition: service_started
+    networks:
+      - wams_net
+
+volumes:
+  auth_db_data:
+  patient_db_data:
+  patient_media_data:
+
+networks:
+  wams_net:
+    driver: bridge

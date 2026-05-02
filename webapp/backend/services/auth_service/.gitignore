@@ -1,0 +1,28 @@
+# Quick creation
+cat > .gitignore << 'EOF'
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+EOF

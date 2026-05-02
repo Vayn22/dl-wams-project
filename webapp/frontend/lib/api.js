@@ -1,4 +1,12 @@
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const AUTH_URL = (
+  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || "http://localhost:8001"
+).replace(/\/$/, "");
+const PATIENT_URL = (
+  process.env.NEXT_PUBLIC_PATIENT_SERVICE_URL || "http://localhost:8002"
+).replace(/\/$/, "");
+const AI_URL = (
+  process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8003"
+).replace(/\/$/, "");
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 let refreshPromise = null;
@@ -37,13 +45,28 @@ const UI_STATUS_BY_API = {
   expired: "terminé",
 };
 
+function computeAgeFromDate(dateValue) {
+  if (!dateValue) return null;
+  const birth = new Date(dateValue);
+  if (Number.isNaN(birth.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  const dayDiff = today.getDate() - birth.getDate();
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+  return age > 0 ? age : null;
+}
+
 function toAbsoluteMediaUrl(value) {
   const raw = String(value || "");
   if (!raw) return "";
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     return raw;
   }
-  return `${API_BASE_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
+  return `${PATIENT_URL}${raw.startsWith("/") ? raw : `/${raw}`}`;
 }
 
 function toJsonIfPossible(text) {
@@ -75,12 +98,12 @@ export function hasAccessToken() {
   return Boolean(getStoredToken(ACCESS_TOKEN_KEY));
 }
 
-function buildUrl(path) {
+function buildUrl(path, baseUrl) {
   if (String(path).startsWith("http://") || String(path).startsWith("https://")) {
     return path;
   }
   const normalizedPath = String(path).startsWith("/") ? path : `/${path}`;
-  return `${API_BASE_URL}${normalizedPath}`;
+  return `${baseUrl}${normalizedPath}`;
 }
 
 function getErrorMessage(data, rawText, status) {
@@ -103,7 +126,7 @@ async function refreshAccessToken() {
 
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const response = await fetch(buildUrl("/api/token/refresh/"), {
+      const response = await fetch(buildUrl("/api/token/refresh/", AUTH_URL), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh }),
@@ -134,6 +157,7 @@ async function apiRequest(path, options = {}) {
     customHeaders = {},
     skipAuth = false,
     allowRefresh = true,
+    baseUrl = AUTH_URL,
   } = options;
 
   const headers = { ...customHeaders };
@@ -145,7 +169,7 @@ async function apiRequest(path, options = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(buildUrl(path), {
+  const response = await fetch(buildUrl(path, baseUrl), {
     method,
     headers,
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
@@ -234,7 +258,12 @@ export function apiPatientToUi(patient) {
         label: file.label || "Fichier medical",
         url: toAbsoluteMediaUrl(file.file),
         uploadedAt: file.uploaded_at || null,
-        uploadedBy: file.uploaded_by ? String(file.uploaded_by) : null,
+        uploadedBy:
+          file.uploaded_by != null
+            ? String(file.uploaded_by)
+            : file.uploaded_by_user_id != null
+            ? String(file.uploaded_by_user_id)
+            : null,
       }))
     : [];
 
@@ -243,13 +272,16 @@ export function apiPatientToUi(patient) {
     firstName: patient.first_name,
     lastName: patient.last_name,
     dateOfBirth: patient.date_of_birth,
+    age: patient.age ?? "",
     gender: UI_GENDER_BY_API[patient.gender] || patient.gender,
     phone: patient.phone_number || "",
     email: "",
     address: patient.address || "",
     bloodType: patient.blood_type || "",
-    assignedDoctorId: patient.doctors?.length ? String(patient.doctors[0]) : "",
-    diagnosis: "",
+    assignedDoctorId: patient.assigned_doctor_ids?.length
+      ? String(patient.assigned_doctor_ids[0])
+      : "",
+    diagnosis: patient.diagnosis || "",
     notes: patient.notes || "",
     attachmentName: "",
     medicalFiles,
@@ -273,12 +305,18 @@ export function apiAppointmentToUi(appointment, patientsById = {}) {
   const patientName = patient
     ? `${patient.firstName} ${patient.lastName}`
     : `Patient #${appointment.patient}`;
+  const doctorId =
+    appointment.doctor_user_id != null
+      ? String(appointment.doctor_user_id)
+      : appointment.doctor != null
+      ? String(appointment.doctor)
+      : "";
 
   return {
     id: String(appointment.id),
     patientId: String(appointment.patient),
     patientName,
-    doctorId: String(appointment.doctor),
+    doctorId,
     date: date.toISOString().slice(0, 10),
     time: date.toISOString().slice(11, 16),
     duration: 30,
@@ -290,16 +328,19 @@ export function apiAppointmentToUi(appointment, patientsById = {}) {
 }
 
 export function uiPatientToApi(values, doctorId) {
+  const computedAge = computeAgeFromDate(values.dateOfBirth);
   return {
     first_name: values.firstName,
     last_name: values.lastName,
+    age: computedAge,
     date_of_birth: values.dateOfBirth,
     gender: API_GENDER_BY_UI[String(values.gender || "").trim().toLowerCase()] || "other",
     blood_type: values.bloodType || null,
     phone_number: values.phone,
     address: values.address || "",
-    notes: values.notes || values.diagnosis || "",
-    doctors: doctorId ? [Number(doctorId)] : [],
+    diagnosis: values.diagnosis || "",
+    notes: values.notes || "",
+    assigned_doctor_ids: doctorId ? [Number(doctorId)] : [],
   };
 }
 
@@ -327,76 +368,75 @@ export async function loginApi(username, password) {
 }
 
 export async function meApi() {
-  return get("/api/users/me/");
+  return get("/api/users/me/", { baseUrl: AUTH_URL });
 }
 
 export async function listDoctorsApi() {
-  return get("/api/users/doctors/");
+  return get("/api/users/doctors/", { baseUrl: AUTH_URL });
 }
 
 export async function createDoctorApi(payload) {
-  return post("/api/users/doctors/create/", payload);
+  return post("/api/users/doctors/create/", payload, { baseUrl: AUTH_URL });
 }
 
 export async function updateDoctorApi(doctorId, payload) {
-  return put(`/api/users/doctors/${doctorId}/update/`, payload);
+  return put(`/api/users/doctors/${doctorId}/update/`, payload, { baseUrl: AUTH_URL });
 }
 
 export async function deleteDoctorApi(doctorId) {
-  return del(`/api/users/doctors/${doctorId}/delete/`);
+  return del(`/api/users/doctors/${doctorId}/delete/`, { baseUrl: AUTH_URL });
 }
 
 export async function listSpecialtiesApi() {
-  return get("/api/users/specialties/");
+  return get("/api/users/specialties/", { baseUrl: AUTH_URL });
 }
 
 export async function listPatientsApi() {
-  return get("/api/patients/");
+  return get("/api/patients/", { baseUrl: PATIENT_URL });
+}
+
+export async function getPatientApi(patientId) {
+  return get(`/api/patients/${patientId}/`, { baseUrl: PATIENT_URL });
 }
 
 export async function createPatientApi(payload) {
-  return post("/api/patients/create/", payload);
+  return post("/api/patients/create/", payload, { baseUrl: PATIENT_URL });
 }
 
 export async function updatePatientApi(patientId, payload) {
-  return put(`/api/patients/${patientId}/update/`, payload);
+  return put(`/api/patients/${patientId}/update/`, payload, { baseUrl: PATIENT_URL });
 }
 
 export async function deletePatientApi(patientId) {
-  return del(`/api/patients/${patientId}/delete/`);
+  return del(`/api/patients/${patientId}/delete/`, { baseUrl: PATIENT_URL });
 }
 
 export async function uploadPatientFileApi(patientId, file, label = "") {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("label", label || file?.name || "Fichier medical");
-  return post(`/api/patients/${patientId}/files/upload/`, formData, { isFormData: true });
+  return post(`/api/patients/${patientId}/files/upload/`, formData, {
+    isFormData: true,
+    baseUrl: PATIENT_URL,
+  });
 }
 
 export async function deletePatientFileApi(fileId) {
-  return del(`/api/patients/files/${fileId}/delete/`);
+  return del(`/api/patients/files/${fileId}/delete/`, { baseUrl: PATIENT_URL });
 }
 
 export async function listAppointmentsApi() {
-  return get("/api/patients/appointments/");
+  return get("/api/appointments/", { baseUrl: PATIENT_URL });
 }
 
 export async function createAppointmentApi(payload) {
-  return post("/api/patients/appointments/create/", payload);
+  return post("/api/appointments/create/", payload, { baseUrl: PATIENT_URL });
 }
 
 export async function updateAppointmentApi(appointmentId, payload) {
-  return put(`/api/patients/appointments/${appointmentId}/update/`, payload);
+  return put(`/api/appointments/${appointmentId}/update/`, payload, { baseUrl: PATIENT_URL });
 }
 
 export async function deleteAppointmentApi(appointmentId) {
-  return del(`/api/patients/appointments/${appointmentId}/delete/`);
-}
-
-export async function listAiModelsApi() {
-  return get("/ai/models/");
-}
-
-export async function runAiModelApi(payload) {
-  return post("/ai/run/", payload);
+  return del(`/api/appointments/${appointmentId}/delete/`, { baseUrl: PATIENT_URL });
 }
