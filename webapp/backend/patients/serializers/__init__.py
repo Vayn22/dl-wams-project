@@ -1,3 +1,0 @@
-from .patient_serializer import PatientSerializer
-from .medical_file_serializer import MedicalFileSerializer
-from .appointment_serializer import AppointmentSerializer

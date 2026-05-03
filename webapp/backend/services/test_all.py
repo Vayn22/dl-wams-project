@@ -224,7 +224,7 @@ def test_health(AUTH: str, PATIENT: str, AI: str) -> None:
 def test_dev_create_user(AUTH: str) -> None:
     _section("2 · Dev create user (open endpoint)")
 
-    payload = {"username": "test_admin", "password": "TestAdmin@1234"}
+    payload = {"username": "Cuddy-Lisa", "password": "pass"}
     r = requests.post(f"{AUTH}/api/users/dev-create-user/", json=payload, timeout=10)
     body = _expect(
         "POST /api/users/dev-create-user/ → 200",

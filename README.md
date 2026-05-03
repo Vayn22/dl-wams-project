@@ -1,93 +1,36 @@
-# MediSync — Guide de démarrage
+# WAMS Web App (Microservices + AI)
 
-Ce dépôt contient:
-- `webapp/backend` : API Django (auth, patients, rendez-vous, fichiers médicaux)
-- `webapp/frontend` : interface Next.js
-- `ai_model` : dépendances/data science liées au modèle IA
+Presentation video (demo of the web app): https://youtu.be/iysXjYfrufE
 
-## Prérequis
+## Repo Contents (high level)
 
-- Python 3.12+ (ou version compatible Django 6)
-- Node.js 20+
-- npm
+- `webapp/` – the application
+  - `webapp/frontend/` – Next.js UI (admin/doctor views)
+  - `webapp/backend/services/` – Docker Compose + Django microservices:
+    - `auth_service/` – authentication + JWT/RBAC (port `8001`)
+    - `patient_service/` – patients, appointments, medical files (port `8002`)
+    - `ai_service/` – U-Net image segmentation API (port `8003`, returns a base64 PNG mask)
+  - `webapp/run.py` – helper to start/stop services (single-machine or multi-machine)
+  - `webapp/MULTI_MACHINE_SETUP.md` – detailed LAN/multi-PC setup (Consul + Traefik)
+- `ai_model/requirements.txt` – Python dependencies for model/dev work (Torch, OpenCV, etc.)
 
-## 1) Démarrer le backend (Django)
+## Quick Start (local)
 
-Depuis la racine du projet:
-
-```bash
-cd webapp/backend
-python -m venv .venv
-```
-
-### Windows (PowerShell)
+Backend (Docker):
 ```powershell
-.\.venv\Scripts\Activate.ps1
+python webapp\run.py --mode all
 ```
 
-### macOS / Linux
-```bash
-source .venv/bin/activate
-```
-
-Installer les dépendances:
-
-```bash
-pip install -r requirements.txt
-```
-
-Appliquer les migrations:
-
-```bash
-python manage.py migrate
-```
-
-Lancer le serveur:
-
-```bash
-python manage.py runserver 8000
-```
-
-API disponible sur: `http://127.0.0.1:8000`
-
-## 2) Démarrer le frontend (Next.js)
-
-Ouvrir un second terminal:
-
-```bash
-cd webapp/frontend
+Frontend:
+```powershell
+cd webapp\frontend
 npm install
 npm run dev
 ```
 
-Frontend disponible sur: `http://localhost:3000`
-
-## 3) Variables d'environnement frontend
-
-Fichier: `webapp/frontend/.env.local`
-
-Valeurs utilisées:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_AI_SERVICE_URL=http://localhost:8001
-```
-
-> Note: les fonctionnalités IA côté frontend attendent un service IA accessible sur `NEXT_PUBLIC_AI_SERVICE_URL`.
-
-## 4) Tests backend rapides
-
-Depuis `webapp/backend` (backend déjà lancé):
-
-```bash
-python test_api.py
-```
-
-## 5) Endpoints utiles
-
-- Auth token: `POST /api/token/`
-- Refresh token: `POST /api/token/refresh/`
-- Users: `GET /api/users/...`
-- Patients: `GET /api/patients/...`
-
-Base URL locale: `http://127.0.0.1:8000`
+Useful ports when running:
+- Consul UI: `http://localhost:8500`
+- Traefik dashboard: `http://localhost:8081` (proxy listens on `http://localhost:8080`)
+- Auth service: `http://localhost:8001`
+- Patient service: `http://localhost:8002`
+- AI service: `http://localhost:8003`
