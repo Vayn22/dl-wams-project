@@ -1,0 +1,58 @@
+const mockDoctors = [
+  {
+    id: "d1",
+    name: "Dr. Camille Moreau",
+    email: "camille.moreau@medisync.com",
+    password: "doctor123",
+    specialty: "neurologist",
+    phone: "06 14 28 73 90",
+    createdAt: "2024-02-12",
+  },
+  {
+    id: "d2",
+    name: "Dr. Julien Lefevre",
+    email: "julien.lefevre@medisync.com",
+    password: "doctor123",
+    specialty: "neurologist",
+    phone: "06 22 95 61 44",
+    createdAt: "2024-03-03",
+  },
+  {
+    id: "d3",
+    name: "Dr. Sarah Benali",
+    email: "sarah.benali@medisync.com",
+    password: "doctor123",
+    specialty: "radiologist",
+    phone: "06 47 18 33 52",
+    createdAt: "2024-01-08",
+  },
+  {
+    id: "d4",
+    name: "Dr. Thomas Renault",
+    email: "thomas.renault@medisync.com",
+    password: "doctor123",
+    specialty: "radiologist",
+    phone: "06 39 52 14 06",
+    createdAt: "2024-04-21",
+  },
+  {
+    id: "d5",
+    name: "Dr. Ines Bernard",
+    email: "ines.bernard@medisync.com",
+    password: "doctor123",
+    specialty: "general",
+    phone: "06 71 30 49 82",
+    createdAt: "2023-11-29",
+  },
+  {
+    id: "d6",
+    name: "Dr. Antoine Girard",
+    email: "antoine.girard@medisync.com",
+    password: "doctor123",
+    specialty: "general",
+    phone: "06 56 22 44 19",
+    createdAt: "2024-05-10",
+  },
+];
+
+export default mockDoctors;

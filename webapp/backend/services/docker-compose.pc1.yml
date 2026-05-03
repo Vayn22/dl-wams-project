@@ -1,0 +1,105 @@
+# ============================================================
+#  PC1  –  Infrastructure + Auth service
+#
+#  This machine runs:
+#    - Consul SERVER (the cluster leader, port 8500 must be reachable by other PCs)
+#    - Traefik (reverse-proxy/gateway)
+#    - auth_db  (PostgreSQL for auth service)
+#    - auth     (Django auth microservice)
+#
+#  Usage:
+#    docker compose -f docker-compose.pc1.yml up --build
+#
+#  Before starting, set PC1_IP to this machine's LAN IP in your shell:
+#    set PC1_IP=192.168.1.10      (Windows PowerShell)
+#    export PC1_IP=192.168.1.10   (Linux/macOS)
+#
+#  Or just edit the ADVERTISE_IP value below.
+# ============================================================
+
+services:
+  consul:
+    image: hashicorp/consul:1.21.3
+    command:
+      - "agent"
+      - "-server"
+      - "-bootstrap-expect=1"
+      - "-client=0.0.0.0"
+      - "-ui"
+      # Advertise the real LAN IP so other machines can find this node.
+      # Replace with this PC's actual LAN IP if the env var isn't set.
+      - "-advertise=${PC1_IP:-127.0.0.1}"
+      - "-bind=0.0.0.0"
+    ports:
+      - "8500:8500"      # HTTP UI + API  ← must be reachable from other PCs
+      - "8600:8600/udp"  # DNS
+      - "8300:8300"      # Server RPC     ← must be reachable from other PCs
+      - "8301:8301"      # Serf LAN       ← must be reachable from other PCs
+      - "8301:8301/udp"
+    networks:
+      - wams_net
+
+  traefik:
+    image: traefik:v3.1
+    command:
+      - --api.insecure=true
+      - --providers.consulcatalog=true
+      - --providers.consulcatalog.endpoint.address=consul:8500
+      - --providers.consulcatalog.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "8080:80"   # main gateway
+      - "8081:8080" # Traefik dashboard
+    depends_on:
+      - consul
+    networks:
+      - wams_net
+
+  auth_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wams_net
+
+  auth:
+    build: ./auth_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: auth-service
+      SERVICE_ID: auth-service-1
+      # SERVICE_HOST must be this PC's LAN IP so Consul's health-check
+      # URL is reachable from the Consul agent running in this container.
+      SERVICE_HOST: ${PC1_IP:-127.0.0.1}
+      SERVICE_PORT: 8001
+      HEALTH_URL: http://${PC1_IP:-127.0.0.1}:8001/api/users/health/
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_password
+      POSTGRES_HOST: auth_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "8001:8001"
+    depends_on:
+      consul:
+        condition: service_started
+      auth_db:
+        condition: service_healthy
+    networks:
+      - wams_net
+
+volumes:
+  auth_db_data:
+
+networks:
+  wams_net:
+    driver: bridge

@@ -1,0 +1,85 @@
+# ============================================================
+#  PC3 / PC4 / Extra machines – Template for additional services
+#
+#  Copy this file and rename it (e.g. docker-compose.pc3.yml).
+#  Add whatever new services you want to run on that machine.
+#  The consul-client block handles cluster membership automatically.
+#
+#  Before starting, set:
+#    Windows PowerShell:
+#      $env:PC1_IP="192.168.1.10"   # LAN IP of PC1 (Consul server)
+#      $env:THIS_IP="192.168.1.30"  # LAN IP of THIS machine
+#
+#    Linux/macOS:
+#      export PC1_IP=192.168.1.10
+#      export THIS_IP=192.168.1.30
+# ============================================================
+
+services:
+  consul-client:
+    image: hashicorp/consul:1.21.3
+    command:
+      - "agent"
+      - "-client=0.0.0.0"
+      - "-ui"
+      - "-advertise=${THIS_IP:-127.0.0.1}"
+      - "-bind=0.0.0.0"
+      - "-retry-join=${PC1_IP:-127.0.0.1}"
+    ports:
+      - "8500:8500"
+      - "8301:8301"
+      - "8301:8301/udp"
+    networks:
+      - wams_net
+
+  # -------------------------------------------------------
+  # Add your services below.
+  # Replace MY_SERVICE, MY_SERVICE_PORT, MY_DB, etc.
+  # -------------------------------------------------------
+
+  # my_service_db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_DB: my_db
+  #     POSTGRES_USER: my_user
+  #     POSTGRES_PASSWORD: my_password
+  #   volumes:
+  #     - my_db_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U my_user -d my_db"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 10
+  #   networks:
+  #     - wams_net
+
+  # my_service:
+  #   build: ./my_service
+  #   environment:
+  #     CONSUL_URL: http://consul-client:8500
+  #     SERVICE_NAME: my-service
+  #     SERVICE_ID: my-service-1
+  #     SERVICE_HOST: ${THIS_IP:-127.0.0.1}
+  #     SERVICE_PORT: 8003
+  #     HEALTH_URL: http://${THIS_IP:-127.0.0.1}:8003/api/health/
+  #     POSTGRES_DB: my_db
+  #     POSTGRES_USER: my_user
+  #     POSTGRES_PASSWORD: my_password
+  #     POSTGRES_HOST: my_service_db
+  #     POSTGRES_PORT: 5432
+  #   ports:
+  #     - "8003:8003"
+  #   depends_on:
+  #     consul-client:
+  #       condition: service_started
+  #     my_service_db:
+  #       condition: service_healthy
+  #   networks:
+  #     - wams_net
+
+# volumes:
+#   my_db_data:
+
+networks:
+  wams_net:
+    driver: bridge

@@ -1,0 +1,90 @@
+# ============================================================
+#  PC2  –  Patient service
+#
+#  This machine runs:
+#    - A Consul CLIENT agent (joins the server running on PC1)
+#    - patient_db  (PostgreSQL for patient service)
+#    - patient     (Django patient microservice)
+#
+#  Usage:
+#    docker compose -f docker-compose.pc2.yml up --build
+#
+#  Before starting, set these env vars:
+#    Windows PowerShell:
+#      $env:PC1_IP="192.168.1.10"   # LAN IP of PC1
+#      $env:PC2_IP="192.168.1.20"   # LAN IP of THIS machine
+#
+#    Linux/macOS:
+#      export PC1_IP=192.168.1.10
+#      export PC2_IP=192.168.1.20
+#
+#  PC1 must already be running (docker-compose.pc1.yml) before starting this.
+# ============================================================
+
+services:
+  consul-client:
+    image: hashicorp/consul:1.21.3
+    command:
+      - "agent"
+      - "-client=0.0.0.0"
+      - "-ui"
+      # Advertise this PC's real LAN IP
+      - "-advertise=${PC2_IP:-127.0.0.1}"
+      - "-bind=0.0.0.0"
+      # Join the Consul SERVER running on PC1
+      - "-retry-join=${PC1_IP:-127.0.0.1}"
+    ports:
+      - "8500:8500"      # Local Consul UI (optional, just for convenience)
+      - "8301:8301"      # Serf LAN
+      - "8301:8301/udp"
+    networks:
+      - wams_net
+
+  patient_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_password
+    volumes:
+      - patient_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U patient_user -d patient_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - wams_net
+
+  patient:
+    build: ./patient_service
+    environment:
+      # Point to the LOCAL consul-client agent (which forwards to PC1's server)
+      CONSUL_URL: http://consul-client:8500
+      SERVICE_NAME: patient-service
+      SERVICE_ID: patient-service-1
+      # SERVICE_HOST is THIS machine's LAN IP — Consul health checks will use it
+      SERVICE_HOST: ${PC2_IP:-127.0.0.1}
+      SERVICE_PORT: 8002
+      HEALTH_URL: http://${PC2_IP:-127.0.0.1}:8002/api/health/
+      POSTGRES_DB: patient_db
+      POSTGRES_USER: patient_user
+      POSTGRES_PASSWORD: patient_password
+      POSTGRES_HOST: patient_db
+      POSTGRES_PORT: 5432
+    ports:
+      - "8002:8002"
+    depends_on:
+      consul-client:
+        condition: service_started
+      patient_db:
+        condition: service_healthy
+    networks:
+      - wams_net
+
+volumes:
+  patient_db_data:
+
+networks:
+  wams_net:
+    driver: bridge
