@@ -71,6 +71,43 @@ services:
     networks:
       - wams_net
 
+
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        NEXT_PUBLIC_AUTH_SERVICE_URL: http://auth.localhost:8080
+        NEXT_PUBLIC_PATIENT_SERVICE_URL: http://patient.localhost:8080
+        NEXT_PUBLIC_AI_SERVICE_URL: http://ai.localhost:8080
+    environment:
+      NEXT_PUBLIC_AUTH_SERVICE_URL: http://auth.localhost:8080
+      NEXT_PUBLIC_PATIENT_SERVICE_URL: http://patient.localhost:8080
+      NEXT_PUBLIC_AI_SERVICE_URL: http://ai.localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - traefik
+    networks:
+      - wams_net
+
+
+  ai:
+    build: ./ai_service
+    environment:
+      CONSUL_URL: http://consul:8500
+      SERVICE_NAME: ai-service
+      SERVICE_ID: ai-service-1
+      SERVICE_HOST: ${PC1_IP:-127.0.0.1}
+      SERVICE_PORT: 8003
+      HEALTH_URL: http://${PC1_IP:-127.0.0.1}:8003/api/health/
+    ports:
+      - "8003:8003"
+    depends_on:
+      consul:
+        condition: service_started
+    networks:
+      - wams_net
+
   auth:
     build: ./auth_service
     environment:

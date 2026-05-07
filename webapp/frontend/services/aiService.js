@@ -1,8 +1,8 @@
 const AI_SERVICE_BASE_URL = (
-  process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8003"
+  process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://ai.localhost:8080"
 ).replace(/\/$/, "");
 const AUTH_SERVICE_BASE_URL = (
-  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || "http://localhost:8001"
+  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || "http://auth.localhost:8080"
 ).replace(/\/$/, "");
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";

@@ -116,6 +116,25 @@ services:
       - wams_net
 
   # ===================== AI SERVICE =====================
+
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        NEXT_PUBLIC_AUTH_SERVICE_URL: http://auth.localhost:8080
+        NEXT_PUBLIC_PATIENT_SERVICE_URL: http://patient.localhost:8080
+        NEXT_PUBLIC_AI_SERVICE_URL: http://ai.localhost:8080
+    environment:
+      NEXT_PUBLIC_AUTH_SERVICE_URL: http://auth.localhost:8080
+      NEXT_PUBLIC_PATIENT_SERVICE_URL: http://patient.localhost:8080
+      NEXT_PUBLIC_AI_SERVICE_URL: http://ai.localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - traefik
+    networks:
+      - wams_net
+
   ai:
     build: ./ai_service
     environment:

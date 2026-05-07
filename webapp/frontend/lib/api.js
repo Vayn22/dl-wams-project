@@ -1,11 +1,11 @@
 const AUTH_URL = (
-  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || "http://localhost:8001"
+  process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || "http://auth.localhost:8080"
 ).replace(/\/$/, "");
 const PATIENT_URL = (
-  process.env.NEXT_PUBLIC_PATIENT_SERVICE_URL || "http://localhost:8002"
+  process.env.NEXT_PUBLIC_PATIENT_SERVICE_URL || "http://patient.localhost:8080"
 ).replace(/\/$/, "");
 const AI_URL = (
-  process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8003"
+  process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://ai.localhost:8080"
 ).replace(/\/$/, "");
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
